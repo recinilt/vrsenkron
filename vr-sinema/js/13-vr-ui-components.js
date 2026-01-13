@@ -25,6 +25,12 @@ AFRAME.registerComponent('vr-ui-handler', {
 AFRAME.registerComponent('vr-button-handler', {
     init: function() {
         this.el.addEventListener('click', () => {
+            // CRITICAL FIX: Henüz odaya katılmadıysak hiçbir şey yapma
+            if (!currentRoomId || !currentRoomData) {
+                console.log('⚠️ VR buton tıklandı ama henüz odaya katılınmadı, görmezden gelindi');
+                return;
+            }
+
             const buttonId = this.el.id;
             
             switch(buttonId) {
@@ -121,6 +127,11 @@ AFRAME.registerComponent('proximity-ui', {
 AFRAME.registerComponent('vr-seekbar-handler', {
     init: function() {
         this.el.addEventListener('click', (evt) => {
+            // Henüz odaya katılmadıysak sessizce çık
+            if (!currentRoomId || !currentRoomData) {
+                return;
+            }
+            
             if (!canControlVideo() || !videoElement) return;
             
             const intersection = evt.detail.intersection;

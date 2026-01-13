@@ -175,6 +175,11 @@ function dismissVideoError() {
 
 // Video değiştirme modalını göster
 function showChangeVideoModal() {
+    // Henüz odaya katılmadıysak sessizce çık
+    if (!currentRoomId || !currentRoomData) {
+        return;
+    }
+    
     if (!canControlVideo()) {
         alert('⚠️ Bu odada sadece oda sahibi video değiştirebilir!');
         return;

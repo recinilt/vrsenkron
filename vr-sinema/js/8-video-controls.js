@@ -15,6 +15,11 @@ function canControlVideo() {
 
 // Play/Pause toggle
 function togglePlayPause() {
+    // Henüz odaya katılmadıysak sessizce çık
+    if (!currentRoomId || !currentRoomData) {
+        return;
+    }
+
     if (!canControlVideo()) {
         alert('⚠️ Bu odada sadece oda sahibi video kontrolü yapabilir!');
         return;
@@ -51,6 +56,11 @@ function togglePlayPause() {
 
 // Videoyu durdur ve başa sar
 function stopVideo() {
+    // Henüz odaya katılmadıysak sessizce çık
+    if (!currentRoomId || !currentRoomData) {
+        return;
+    }
+    
     if (!canControlVideo()) {
         alert('⚠️ Bu odada sadece oda sahibi video kontrolü yapabilir!');
         return;

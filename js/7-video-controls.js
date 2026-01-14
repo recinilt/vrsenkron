@@ -1,6 +1,11 @@
 // ============================================
-// VİDEO KONTROL FONKSİYONLARI
+// VİDEO KONTROL FONKSİYONLARI - DEBOUNCE İLE
 // ============================================
+
+// Debounce için son tıklama zamanı
+let lastSeekTime = 0;
+let seekDebounceTimeout = null;
+const SEEK_DEBOUNCE_DELAY = 2000; // 2 saniye
 
 function canControlVideo() {
     if (!currentRoomData) return false;
@@ -72,6 +77,7 @@ function stopVideo() {
     showSyncStatus('⏹ Video başa sarıldı');
 }
 
+// Debounced Seek - 2 saniye içinde tekrar tıklanırsa sayım sıfırlanır
 function seekVideo(seconds) {
     if (!canControlVideo()) {
         alert('⚠️ Bu odada sadece oda sahibi video kontrolü yapabilir!');
@@ -83,15 +89,78 @@ function seekVideo(seconds) {
         return;
     }
     
+    const now = Date.now();
+    
+    // 2 saniye içinde tekrar tıklanırsa timeout'u sıfırla
+    if (now - lastSeekTime < SEEK_DEBOUNCE_DELAY) {
+        clearTimeout(seekDebounceTimeout);
+        console.log('⏱️ Seek debounce sıfırlandı (2sn dolmadı)');
+    }
+    
+    lastSeekTime = now;
+    
+    // Lokal olarak hemen seek yap (gecikme olmasın)
     const newTime = Math.max(0, Math.min(videoElement.duration, videoElement.currentTime + seconds));
     videoElement.currentTime = newTime;
     
-    roomRef.child('videoState').update({
-        currentTime: newTime,
-        lastUpdate: Date.now()
-    });
+    console.log(`⏩ Lokal seek: ${seconds > 0 ? 'ileri' : 'geri'} ${Math.abs(seconds)}sn → ${newTime.toFixed(1)}s`);
+    showSyncStatus(`⏩ ${seconds > 0 ? '+' : ''}${seconds}sn (bekleniyor...)`);
     
-    console.log(`⏩ Video ${seconds > 0 ? 'ileri' : 'geri'} alındı: ${newTime.toFixed(1)}s`);
+    // 2 saniye sonra Firebase'e gönder
+    seekDebounceTimeout = setTimeout(() => {
+        const finalTime = videoElement.currentTime;
+        
+        roomRef.child('videoState').update({
+            currentTime: finalTime,
+            lastUpdate: Date.now()
+        }).then(() => {
+            console.log(`✓ Firebase senkronize edildi: ${finalTime.toFixed(1)}s`);
+            showSyncStatus('✓ Senkronize edildi');
+        });
+    }, SEEK_DEBOUNCE_DELAY);
+}
+
+// Seek bar ile pozisyon değiştirme (VR için)
+function seekToPosition(percentage) {
+    if (!canControlVideo()) {
+        alert('⚠️ Bu odada sadece oda sahibi video kontrolü yapabilir!');
+        return;
+    }
+    
+    if (!videoElement || !videoElement.duration) {
+        console.log('❌ Video henüz hazır değil');
+        return;
+    }
+    
+    const now = Date.now();
+    
+    // 2 saniye içinde tekrar tıklanırsa timeout'u sıfırla
+    if (now - lastSeekTime < SEEK_DEBOUNCE_DELAY) {
+        clearTimeout(seekDebounceTimeout);
+        console.log('⏱️ Seek bar debounce sıfırlandı (2sn dolmadı)');
+    }
+    
+    lastSeekTime = now;
+    
+    // Lokal olarak hemen seek yap
+    const newTime = videoElement.duration * percentage;
+    videoElement.currentTime = newTime;
+    
+    console.log(`🎯 Seek bar tıklandı: %${(percentage * 100).toFixed(1)} → ${newTime.toFixed(1)}s`);
+    showSyncStatus(`🎯 ${formatTime(newTime)} (bekleniyor...)`);
+    
+    // 2 saniye sonra Firebase'e gönder
+    seekDebounceTimeout = setTimeout(() => {
+        const finalTime = videoElement.currentTime;
+        
+        roomRef.child('videoState').update({
+            currentTime: finalTime,
+            lastUpdate: Date.now()
+        }).then(() => {
+            console.log(`✓ Firebase senkronize edildi: ${finalTime.toFixed(1)}s`);
+            showSyncStatus('✓ Senkronize edildi');
+        });
+    }, SEEK_DEBOUNCE_DELAY);
 }
 
 function setPlaybackRate(rate) {
@@ -104,4 +173,10 @@ function setPlaybackRate(rate) {
     console.log('🎚️ Oynatma hızı:', rate);
 }
 
-console.log('✓ Video kontrol fonksiyonları yüklendi');
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+console.log('✓ Video kontrol fonksiyonları yüklendi (2 saniyelik debounce ile)');

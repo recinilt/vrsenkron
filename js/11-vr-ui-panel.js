@@ -40,10 +40,10 @@ function createVRUIPanel() {
     // Video Kontrol Butonları
     createVideoControlButtons(vrUIPanel);
     
-    // Seek Bar
+    // Seek Bar (Tıklanabilir)
     createVRSeekBar(vrUIPanel);
     
-    // Camera rig'e ekle (her zaman görünür olsun)
+    // Camera rig'e ekle
     camera.appendChild(vrUIPanel);
     
     console.log('✓ VR UI Panel oluşturuldu (Sol tarafta, 90° dönük)');
@@ -52,15 +52,12 @@ function createVRUIPanel() {
 function createScreenControlButtons(panel) {
     const buttonSize = VR_UI_CONFIG.buttonSize;
     const positions = {
-        // Yukarı/Aşağı/Sol/Sağ
         up:    { x: 0,     y: 0.8,  label: '↑' },
         down:  { x: 0,     y: 0.2,  label: '↓' },
         left:  { x: -0.4,  y: 0.5,  label: '←' },
         right: { x: 0.4,   y: 0.5,  label: '→' },
-        // İleri/Geri
         forward:  { x: -0.8, y: 0.5, label: '+' },
         backward: { x: 0.8,  y: 0.5, label: '-' },
-        // Sıfırla
         reset: { x: 0, y: -0.2, label: '⟲', size: 0.4 }
     };
     
@@ -134,19 +131,53 @@ function createVRSeekBar(panel) {
     vrSeekBar = document.createElement('a-entity');
     vrSeekBar.setAttribute('position', '0 -1.2 0.02');
     
-    // Seek bar arka plan
+    // Seek bar arka plan (TIKLANABILIR)
     const bgBar = document.createElement('a-plane');
     bgBar.setAttribute('width', VR_UI_CONFIG.seekBarWidth);
-    bgBar.setAttribute('height', '0.1');
+    bgBar.setAttribute('height', '0.15');
     bgBar.setAttribute('color', '#555555');
     bgBar.setAttribute('shader', 'flat');
+    bgBar.setAttribute('class', 'clickable');  // ← TIKLANABILIR
+    bgBar.setAttribute('id', 'vr-seekbar-bg');
+    
+    // Seek bar click eventi
+    bgBar.addEventListener('click', (evt) => {
+        if (!videoElement || !videoElement.duration) return;
+        
+        // Tıklanan pozisyonu hesapla
+        const intersection = evt.detail.intersection;
+        if (!intersection) return;
+        
+        // Local koordinatlarda tıklanan X pozisyonu
+        const localPoint = intersection.point;
+        const seekBarWidth = VR_UI_CONFIG.seekBarWidth;
+        
+        // Seek bar'ın dünya pozisyonu
+        const seekBarWorldPos = new THREE.Vector3();
+        bgBar.object3D.getWorldPosition(seekBarWorldPos);
+        
+        // Relatif pozisyon hesapla (-width/2 ile +width/2 arası)
+        const relativeX = localPoint.x - seekBarWorldPos.x;
+        
+        // Yüzde hesapla (0 ile 1 arası)
+        const percentage = (relativeX + seekBarWidth / 2) / seekBarWidth;
+        const clampedPercentage = Math.max(0, Math.min(1, percentage));
+        
+        console.log('🎯 Seek bar tıklandı:', {
+            relativeX: relativeX.toFixed(2),
+            percentage: (clampedPercentage * 100).toFixed(1) + '%'
+        });
+        
+        seekToPosition(clampedPercentage);
+    });
+    
     vrSeekBar.appendChild(bgBar);
     
     // Progress bar
     const progressBar = document.createElement('a-plane');
     progressBar.setAttribute('id', 'vr-progress-bar');
     progressBar.setAttribute('width', '0');
-    progressBar.setAttribute('height', '0.1');
+    progressBar.setAttribute('height', '0.15');
     progressBar.setAttribute('color', '#00ff00');
     progressBar.setAttribute('shader', 'flat');
     progressBar.setAttribute('position', `-${VR_UI_CONFIG.seekBarWidth / 2} 0 0.01`);
@@ -158,7 +189,7 @@ function createVRSeekBar(panel) {
     timeText.setAttribute('value', '0:00 / 0:00');
     timeText.setAttribute('align', 'center');
     timeText.setAttribute('width', '2');
-    timeText.setAttribute('position', '0 -0.15 0.01');
+    timeText.setAttribute('position', '0 -0.2 0.01');
     timeText.setAttribute('color', '#ffffff');
     vrSeekBar.appendChild(timeText);
     
@@ -237,4 +268,4 @@ function moveScreen(direction) {
     console.log('✓ Ekran pozisyonu:', screenPosition);
 }
 
-console.log('✓ VR UI Panel sistemi yüklendi (90° döndürülmüş, sol tarafta)');
+console.log('✓ VR UI Panel sistemi yüklendi (Seek bar tıklanabilir, 2sn debounce)');

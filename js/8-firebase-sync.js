@@ -18,7 +18,7 @@ function listenToRoomUpdates() {
         if (!state.isPlaying && !videoElement.paused) {
             videoElement.pause();
             videoElement.currentTime = state.currentTime;
-            console.log('⏸️ Video durduruldu');
+            console.log('⏸️ Video durduruldu (sync)');
             return;
         }
         
@@ -47,12 +47,18 @@ function listenToRoomUpdates() {
                 console.log(`▶️ Video başlatıldı (${elapsedSeconds.toFixed(1)}s gecikmeli)`);
             }
         }
+        
+        // Seek değişikliği (play durumunda değilse)
+        if (!state.isPlaying && Math.abs(videoElement.currentTime - state.currentTime) > 0.5) {
+            videoElement.currentTime = state.currentTime;
+            console.log(`🎯 Seek senkronize edildi: ${state.currentTime.toFixed(1)}s`);
+        }
     });
     
     // İzleyici sayısı değişikliklerini dinle (throttled)
     const throttledViewerUpdate = throttle(() => {
         updateViewerCount();
-    }, 5000);  // 5 saniyede bir
+    }, 5000);
     
     roomRef.child('viewers').on('value', throttledViewerUpdate);
     
@@ -66,9 +72,7 @@ function listenToRoomUpdates() {
         }
     });
     
-    // ❌ PERİYODİK UPDATE KALDIRILDI
-    // Artık sadece önemli olaylarda (play/pause/seek) güncelleme yapılıyor
-    console.log('✓ Olay bazlı senkronizasyon aktif (Periyodik update yok)');
+    console.log('✓ Olay bazlı senkronizasyon aktif (Timezone-aware)');
 }
 
 // Throttled versiyon
@@ -103,4 +107,4 @@ function syncVideoState() {
     });
 }
 
-console.log('✓ Firebase senkronizasyon sistemi yüklendi (Optimize Edilmiş)');
+console.log('✓ Firebase senkronizasyon sistemi yüklendi (Timezone-aware, 2sn debounce)');

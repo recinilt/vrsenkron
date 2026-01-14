@@ -19,9 +19,7 @@
     Cross-Origin-Opener-Policy = "same-origin"
     X-Content-Type-Options = "nosniff"
 
-
-# Mevcut ayarların altına ekle:
-
+# Edge Function tanımı
 [[edge_functions]]
   path = "/proxy"
   function = "proxy"

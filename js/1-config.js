@@ -77,10 +77,17 @@ const VIDEO_SERVICES = {
         }
     },
     googledrive: {
-        pattern: /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/,
+        // ID'yi yakalayan Regex (Hem /file/d/ hem de id= formatlarını destekler)
+        pattern: /drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/,
+        
         transform: (match) => {
             const fileId = match[1];
-            return `https://drive.google.com/file/d/${fileId}/preview`;
+            
+            // Google Drive direkt download linki
+            const directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+            
+            // Netlify proxy üzerinden CORS bypass
+            return `${window.location.origin}/proxy?url=${encodeURIComponent(directUrl)}`;
         }
     },
     bunny: {

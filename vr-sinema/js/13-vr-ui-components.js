@@ -10,12 +10,14 @@ AFRAME.registerComponent('vr-ui-handler', {
         // VR moduna geçiş
         scene.addEventListener('enter-vr', () => {
             document.getElementById('vr-ui-panel').setAttribute('visible', 'true');
+            document.getElementById('vr-chat-panel').setAttribute('visible', 'true');
             console.log('✓ VR moduna geçildi, UI gösteriliyor');
         });
         
         // VR modundan çıkış
         scene.addEventListener('exit-vr', () => {
             document.getElementById('vr-ui-panel').setAttribute('visible', 'false');
+            document.getElementById('vr-chat-panel').setAttribute('visible', 'false');
             console.log('✓ VR modundan çıkıldı');
         });
     }
@@ -158,6 +160,42 @@ AFRAME.registerComponent('vr-seekbar-handler', {
             }
             
             console.log(`⏩ Seek: ${formatTime(newTime)}`);
+        });
+    }
+});
+
+// VR Chat Icon Handler
+AFRAME.registerComponent('vr-chat-icon-handler', {
+    init: function() {
+        this.el.addEventListener('click', () => {
+            toggleVRChat();
+        });
+        
+        // Hover efekti
+        this.el.addEventListener('mouseenter', () => {
+            this.el.setAttribute('color', '#5a7fd9');
+        });
+        
+        this.el.addEventListener('mouseleave', () => {
+            this.el.setAttribute('color', '#4a90e2');
+        });
+    }
+});
+
+// VR Chat Input Handler
+AFRAME.registerComponent('vr-chat-input-handler', {
+    init: function() {
+        this.el.addEventListener('click', () => {
+            showVRKeyboard();
+        });
+        
+        // Hover efekti
+        this.el.addEventListener('mouseenter', () => {
+            this.el.setAttribute('color', '#444444');
+        });
+        
+        this.el.addEventListener('mouseleave', () => {
+            this.el.setAttribute('color', '#333333');
         });
     }
 });

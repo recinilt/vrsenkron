@@ -36,6 +36,18 @@ function initComponents() {
         seekBarBg.setAttribute('vr-seekbar-handler', '');
         seekBarBg.classList.add('clickable');
     }
+    
+    // VR Chat Icon'a handler ekle
+    const vrChatIcon = document.getElementById('vr-chat-icon');
+    if (vrChatIcon) {
+        vrChatIcon.setAttribute('vr-chat-icon-handler', '');
+    }
+    
+    // VR Chat Input'a handler ekle
+    const vrChatInput = document.getElementById('vr-chat-input-area');
+    if (vrChatInput) {
+        vrChatInput.setAttribute('vr-chat-input-handler', '');
+    }
 }
 
 // ============================================
@@ -104,7 +116,7 @@ document.addEventListener('keydown', (e) => {
 // KONSOL LOGOSU
 // ============================================
 console.log('%c🎬 VR Sosyal Sinema - Full Edition', 'font-size: 20px; font-weight: bold; color: #667eea;');
-console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #667eea;');
+console.log('%c╔════════════════════════════════════════════╗', 'color: #667eea;');
 console.log('%cÖzellikler:', 'font-weight: bold; color: #764ba2;');
 console.log('%c✓ YouTube Desteği', 'color: #4caf50;');
 console.log('%c✓ Google Drive Desteği (API Key gerekli)', 'color: #4caf50;');
@@ -113,6 +125,7 @@ console.log('%c✓ Çoklu Video Format Desteği', 'color: #4caf50;');
 console.log('%c✓ 13 Sinema Ortamı (Kişiselleştirilebilir)', 'color: #4caf50;');
 console.log('%c✓ Spatial Audio (3D Ses)', 'color: #4caf50;');
 console.log('%c✓ Nickname + Chat Sistemi', 'color: #4caf50;');
+console.log('%c✓ VR Chat Desteği', 'color: #4caf50;');
 console.log('%c✓ Video Sonradan Değiştirme', 'color: #4caf50;');
 console.log('%c✓ Ekran Pozisyonu Kontrolü', 'color: #4caf50;');
 console.log('%c✓ VR UI (Hover ile Göster/Gizle)', 'color: #4caf50;');
@@ -120,32 +133,32 @@ console.log('%c✓ VR Seek Bar (Tıklanabilir)', 'color: #4caf50;');
 console.log('%c✓ Performans Modu Seçimi', 'color: #4caf50;');
 console.log('%c✓ Oda Sahipliği Transferi', 'color: #4caf50;');
 console.log('%c✓ 3 Saniye Tam Senkronizasyon', 'color: #4caf50;');
-console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #667eea;');
+console.log('%c╚════════════════════════════════════════════╝', 'color: #667eea;');
 console.log('%cKlavye Kısayolları:', 'font-weight: bold; color: #764ba2;');
 console.log('%c  Space   → Play/Pause', 'color: #999;');
 console.log('%c  S       → Stop', 'color: #999;');
 console.log('%c  Arrows  → Ekran Pozisyonu (Oda sahibi)', 'color: #999;');
 console.log('%c  C       → Chat Aç/Kapa', 'color: #999;');
 console.log('%c  G       → Ayarlar Aç/Kapa', 'color: #999;');
-console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #667eea;');
+console.log('%c╚════════════════════════════════════════════╝', 'color: #667eea;');
 console.log('%cDebug Komutları:', 'font-weight: bold; color: #764ba2;');
 console.log('%c  vrCinemaDebug.getRoomInfo()    → Oda bilgisi', 'color: #999;');
 console.log('%c  vrCinemaDebug.getVideoState()  → Video durumu', 'color: #999;');
 console.log('%c  vrCinemaDebug.forceSync()      → Manuel senkronizasyon', 'color: #999;');
 console.log('%c  vrCinemaDebug.showVRUI()       → VR UI\'yi göster', 'color: #999;');
 console.log('%c  vrCinemaDebug.listListeners()  → Aktif dinleyiciler', 'color: #999;');
-console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #667eea;');
+console.log('%c╚════════════════════════════════════════════╝', 'color: #667eea;');
 
 // ============================================
 // VERSİYON BİLGİSİ
 // ============================================
-const VERSION = '2.0.0-FULL';
-const BUILD_DATE = '2025-01-13';
+const VERSION = '2.1.0-FULL';
+const BUILD_DATE = '2025-01-14';
 
 console.log(`%cVersion: ${VERSION} | Build: ${BUILD_DATE}`, 'color: #999; font-style: italic;');
-console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #667eea;');
+console.log('%c╚════════════════════════════════════════════╝', 'color: #667eea;');
 console.log('%cHazır! İyi eğlenceler! 🎬🍿', 'font-size: 16px; color: #4caf50; font-weight: bold;');
-console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #667eea;');
+console.log('%c╚════════════════════════════════════════════╝', 'color: #667eea;');
 
 // Sayfa yüklendiğinde
 window.addEventListener('load', () => {

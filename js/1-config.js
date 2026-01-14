@@ -95,7 +95,6 @@ const VIDEO_SERVICES = {
     cloudinary: {
         pattern: /res\.cloudinary\.com\/([^\/]+)\/video\/upload\//,
         transform: (url) => {
-            // Direkt URL'i döndür - dönüşüm gerektirmiyor
             return url;
         }
     },
@@ -109,13 +108,13 @@ const VIDEO_SERVICES = {
     }
 };
 
-// VR Kontrol Paneli Pozisyonu (Sol tarafta, 90 derece dönmüş)
+// VR Kontrol Paneli Pozisyonu (TAM SOLA, UZAKTA, 90 derece dönük)
 const VR_UI_CONFIG = {
-    position: { x: -3.5, y: 1.6, z: -5 },
-    rotation: { x: 0, y: 90, z: 0 },
-    scale: 0.8,
-    buttonSize: 0.3,
-    seekBarWidth: 2
+    position: { x: -5, y: 1.6, z: -3 },      // Çok daha solda ve biraz önde
+    rotation: { x: 0, y: 90, z: 0 },         // 90 derece sağa bakıyor (tam sola bakmak gerek)
+    scale: 0.7,                               // Biraz daha küçük
+    buttonSize: 0.28,
+    seekBarWidth: 1.8
 };
 
 console.log('✓ Yapılandırma yüklendi (Ultimate Versiyon)');
@@ -126,3 +125,4 @@ console.log('✓ Google Drive proxy: Aktif');
 console.log('✓ Zerostorage desteği: Aktif');
 console.log('✓ Cloudinary desteği: Aktif');
 console.log('✓ TS/M3U8 video desteği: Aktif');
+console.log('✓ VR Panel pozisyonu: TAM SOL, x=-5, z=-3');

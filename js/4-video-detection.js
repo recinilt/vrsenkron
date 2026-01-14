@@ -45,7 +45,7 @@ function getVideoUrl(inputUrl) {
     if (service === 'cors-proxy') {
         console.log('🚀 Cloudflare Worker Devrede...');
         
-        // Senin Cloudflare adresin + ?url= parametresi
+        // Buranın tam olarak böyle olduğundan emin ol:
         const MY_PROXY = "https://v-sinema-proxy.recepyeni.workers.dev/?url=";
         
         return `${MY_PROXY}${encodeURIComponent(inputUrl)}`;

@@ -38,7 +38,6 @@ function setupVideoTexture(videoUrl, screenSize, originalUrl) {
         return;
     }
     
-    // Ekran geometrisini ayarla
     const size = {
         'flat': { width: 16, height: 9 },
         '360': { width: 100, height: 100 },
@@ -83,7 +82,6 @@ function setupVideoTexture(videoUrl, screenSize, originalUrl) {
         scene.appendChild(assets);
     }
     
-    // Eski video asset varsa temizle
     const oldVideo = document.getElementById('video-src');
     if (oldVideo) {
         oldVideo.pause();
@@ -115,18 +113,15 @@ function setupVideoTexture(videoUrl, screenSize, originalUrl) {
     });
 }
 
-// ✅ YENİ: Ortam Dispose Mekanizması
 function disposeEnvironment() {
     const scene = document.querySelector('a-scene');
     const environment = scene.querySelector('[environment]');
     
     if (environment) {
-        // A-Frame entity'yi tamamen kaldır
         environment.parentNode.removeChild(environment);
         console.log('✓ Önceki ortam temizlendi (dispose)');
     }
     
-    // Yeni environment entity oluştur
     const newEnv = document.createElement('a-entity');
     newEnv.setAttribute('environment', '');
     scene.appendChild(newEnv);
@@ -148,17 +143,22 @@ function showVideoError(type, error, url) {
     message += '<strong>Çözüm Önerileri:</strong><br>';
     
     if (service === 'unknown' || service === 'cors-proxy') {
-        message += '1. <strong>Catbox.moe</strong> kullanın (Ücretsiz):<br>';
+        message += '1. <strong>Zerostorage.net</strong> kullanın (Ücretsiz):<br>';
+        message += '   • https://zerostorage.net adresine gidin<br>';
+        message += '   • Videoyu yükleyin<br>';
+        message += '   • Embed veya direkt linki kopyalayın<br><br>';
+        
+        message += '2. <strong>Catbox.moe</strong> kullanın (Ücretsiz):<br>';
         message += '   • https://catbox.moe adresine gidin<br>';
         message += '   • Videoyu yükleyin<br>';
         message += '   • Direkt linki kopyalayın<br><br>';
         
-        message += '2. <strong>Bunny.net</strong> kullanın ($1/ay):<br>';
+        message += '3. <strong>Bunny.net</strong> kullanın ($1/ay):<br>';
         message += '   • https://bunny.net adresine kaydolun<br>';
         message += '   • Storage Zone oluşturun<br>';
         message += '   • CDN linkini kullanın<br><br>';
         
-        message += '3. <strong>Direkt .mp4 linki</strong> bulun<br>';
+        message += '4. <strong>Direkt .mp4 linki</strong> bulun<br>';
         message += '   • Link .mp4 ile bitmelidir<br>';
         message += '   • CORS izni olmalıdır<br>';
     } else {
@@ -176,4 +176,4 @@ function showVideoError(type, error, url) {
     `;
 }
 
-console.log('✓ Video kurulum fonksiyonları yüklendi (Dispose mekanizması eklendi)');
+console.log('✓ Video kurulum fonksiyonları yüklendi (Zerostorage desteği eklendi)');

@@ -286,6 +286,16 @@ function detectVideoService(url) {
     if (url.includes('.mp4') || url.includes('.webm') || url.includes('.ogg')) {
         return 'direct';
     }
+
+    else if (url.includes('zerostorage.net/embed/')) {
+    // Zerostorage embed - iframe içinden video URL'sini çıkar
+    const embedId = url.split('/embed/')[1].split('?')[0].split('"')[0];
+    return {
+        type: 'zerostorage',
+        embedId: embedId,
+        processedUrl: url
+    };
+}
     
     return 'cors-proxy';
 }

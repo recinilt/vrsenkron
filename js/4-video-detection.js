@@ -44,10 +44,7 @@ function getVideoUrl(inputUrl) {
     // CORS proxy deneme
     if (service === 'cors-proxy') {
         console.log('⚡ Netlify Edge Proxy kullanılıyor...');
-        
-        // Otomatik olarak https://luxury-axolotl-2b9fbb.netlify.app adresini alır
         const MY_PROXY = `${window.location.origin}/proxy?url=`;
-        
         return `${MY_PROXY}${encodeURIComponent(inputUrl)}`;
     }
     
@@ -62,4 +59,4 @@ function extractVideoId(url, service) {
     return match ? match[1] : null;
 }
 
-console.log('✓ Video algılama fonksiyonları yüklendi');
+console.log('✓ Video algılama fonksiyonları yüklendi (Zerostorage desteği eklendi)');

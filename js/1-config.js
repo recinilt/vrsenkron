@@ -78,17 +78,19 @@ const VIDEO_SERVICES = {
         }
     },
     googledrive: {
-        // ID'yi yakalayan Regex (Hem /file/d/ hem de id= formatlarını destekler)
         pattern: /drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/,
-        
         transform: (match) => {
             const fileId = match[1];
-            
-            // Google Drive direkt download linki
             const directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-            
-            // Cloudflare Worker üzerinden CORS bypass
             return `${CLOUDFLARE_WORKER}?url=${encodeURIComponent(directUrl)}`;
+        }
+    },
+    zerostorage: {
+        pattern: /zerostorage\.net\/(?:embed\/|file\/)([a-zA-Z0-9-]+)/,
+        transform: (match) => {
+            const fileId = match[1];
+            // Zerostorage direkt stream URL'i
+            return `https://zerostorage.net/file/${fileId}`;
         }
     },
     bunny: {
@@ -103,7 +105,7 @@ const VIDEO_SERVICES = {
 
 // VR Kontrol Paneli Pozisyonu
 const VR_UI_CONFIG = {
-    position: { x: -2, y: 1.6, z: -1.5 },  // Sol tarafta
+    position: { x: -2, y: 1.6, z: -1.5 },
     scale: 0.8,
     buttonSize: 0.3,
     seekBarWidth: 2
@@ -114,3 +116,4 @@ console.log('✓ Video formatları:', SUPPORTED_VIDEO_FORMATS.length);
 console.log('✓ Altyazı formatları:', SUPPORTED_SUBTITLE_FORMATS.length);
 console.log('✓ Cloudflare Worker:', CLOUDFLARE_WORKER);
 console.log('✓ Google Drive proxy: Aktif');
+console.log('✓ Zerostorage desteği: Aktif');

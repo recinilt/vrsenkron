@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR Sinema ULTRA - Smart Sync</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    
+    <!-- A-Frame VR -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        #ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.95);
+            transition: opacity 0.3s;
+        }
+        
+        #ui-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .container {
+            max-width: 600px;
+            width: 90%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 16px;
+        }
+        
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        #room-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .room-item {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .room-item:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        
+        .room-name {
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .room-details {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        #vr-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 500;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            display: none;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        #vr-controls button {
+            width: auto;
+            padding: 10px 20px;
+            margin: 0 5px;
+            font-size: 14px;
+        }
+        
+        #room-info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 500;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+            max-width: 300px;
+        }
+        
+        #sync-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 500;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 10px 15px;
+            border-radius: 10px;
+            display: none;
+            font-size: 14px;
+        }
+        
+        /* Smart Sync Overlay */
+        #sync-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 999;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #sync-overlay.active {
+            display: flex;
+        }
+        
+        .sync-box {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .sync-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        .sync-title {
+            font-size: 1.8em;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .sync-countdown {
+            font-size: 3em;
+            font-weight: 700;
+            color: #4ade80;
+            margin: 20px 0;
+            text-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
+        }
+        
+        .sync-info {
+            font-size: 1.1em;
+            opacity: 0.9;
+            margin-top: 10px;
+        }
+        
+        .buffer-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        
+        .buffer-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .buffer-text {
+            margin-top: 10px;
+            font-size: 0.9em;
+            opacity: 0.7;
+        }
+        
+        .status-good { color: #4ade80; }
+        .status-warning { color: #fbbf24; }
+        .status-error { color: #f87171; }
+        
+        #viewer-count {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        a-scene {
+            width: 100%;
+            height: 100vh;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 2em;
+            }
+            #vr-controls {
+                bottom: 10px;
+                padding: 10px;
+            }
+            .sync-box {
+                padding: 30px 20px;
+            }
+            .sync-countdown {
+                font-size: 2.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- UI Overlay -->
+    <div id="ui-overlay">
+        <div class="container">
+            <h1>🎬 VR Sinema ULTRA</h1>
+            
+            <div id="auth-section">
+                <div class="input-group">
+                    <label>👤 Kullanıcı Adı</label>
+                    <input type="text" id="username-input" placeholder="Adınızı girin">
+                </div>
+                <button onclick="anonymousLogin()">🚀 Başla</button>
+            </div>
+            
+            <div id="room-section" class="hidden">
+                <div class="input-group">
+                    <label>🎬 Oda Adı</label>
+                    <input type="text" id="room-name-input" placeholder="Oda adı">
+                </div>
+                <div class="input-group">
+                    <label>🎥 Video Türü</label>
+                    <select id="video-type-select">
+                        <option value="youtube">YouTube</option>
+                        <option value="direct">Direkt URL (.mp4, .webm)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>🔗 Video URL</label>
+                    <textarea id="video-url-input" placeholder="Video URL'sini girin"></textarea>
+                </div>
+                <button onclick="createRoom()">➕ Oda Oluştur</button>
+                <button onclick="loadRoomList()">🔄 Odaları Listele</button>
+                
+                <div id="room-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Smart Sync Overlay -->
+    <div id="sync-overlay">
+        <div class="sync-box">
+            <div class="sync-icon">🔄</div>
+            <div class="sync-title">Senkronizasyon Bekleniyor</div>
+            <div class="sync-countdown" id="sync-countdown">7</div>
+            <div class="sync-info">Kalan süre (saniye)</div>
+            <div class="buffer-bar">
+                <div class="buffer-fill" id="buffer-fill"></div>
+            </div>
+            <div class="buffer-text">Buffer: <span id="buffer-percent">0</span>%</div>
+        </div>
+    </div>
+    
+    <!-- VR Scene -->
+    <a-scene>
+        <a-assets>
+            <video id="video-screen" crossorigin="anonymous" playsinline webkit-playsinline></video>
+        </a-assets>
+        
+        <!-- Sky (Cinema Environment) -->
+        <a-sky color="#000000"></a-sky>
+        
+        <!-- Cinema Screen -->
+        <a-plane id="cinema-screen" position="0 2 -5" width="8" height="4.5" 
+                 material="shader: flat; src: #video-screen; side: double">
+        </a-plane>
+        
+        <!-- Floor -->
+        <a-plane position="0 0 0" rotation="-90 0 0" width="20" height="20" color="#1a1a1a"></a-plane>
+        
+        <!-- Camera with VR cursor -->
+        <a-camera position="0 1.6 0">
+            <a-cursor id="vr-cursor" visible="false" 
+                     material="color: #667eea; shader: flat"
+                     geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.015"
+                     raycaster="objects: .clickable">
+            </a-cursor>
+        </a-camera>
+        
+        <!-- Ambient Light -->
+        <a-light type="ambient" color="#888"></a-light>
+    </a-scene>
+    
+    <!-- Room Info -->
+    <div id="room-info">
+        <div><strong>🎬 Oda:</strong> <span id="room-name-display">-</span></div>
+        <div id="viewer-count">👥 - izleyici</div>
+    </div>
+    
+    <!-- Sync Status -->
+    <div id="sync-status">
+        <span id="sync-text" class="status-good">✅ Senkronize</span>
+    </div>
+    
+    <!-- VR Controls (Owner only) -->
+    <div id="vr-controls">
+        <button onclick="playVideo()">▶️ Oynat</button>
+        <button onclick="pauseVideo()">⏸️ Duraklat</button>
+        <button onclick="seekBackward()">⏪ -10s</button>
+        <button onclick="seekForward()">⏩ +10s</button>
+    </div>
+    
+    <script>
+        // ==================== FIREBASE CONFIG ====================
+        // Firebase Yapılandırması
+        const firebaseConfig = {
+            apiKey: "AIzaSyC60idSLdAiqAjPWAOMaM3g8LAKPGEUwH8",
+            authDomain: "vr-sinema.firebaseapp.com",
+            databaseURL: "https://vr-sinema-default-rtdb.firebaseio.com",
+            projectId: "vr-sinema",
+            storageBucket: "vr-sinema.firebasestorage.app",
+            messagingSenderId: "724648238300",
+            appId: "1:724648238300:web:dceba8c536e8a5ffd96819"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.database();
+        
+        // ==================== CONSTANTS ====================
+        const KEYFRAME_INTERVAL = 10000;           // 10s
+        const DRIFT_UPDATE_INTERVAL = 5000;        // 5s
+        const PRESENCE_UPDATE_INTERVAL = 30000;    // 30s
+        const CLOCK_SYNC_INTERVAL = 60000;         // 60s
+        const CLEANUP_INTERVAL = 10000;            // 10s
+        const TIER1_THRESHOLD = 3000;              // 3s
+        const TIER2_THRESHOLD = 10000;             // 10s
+        const PREBUFFER_TIME = 7000;               // 7s pre-buffer time
+        const OWNER_PRESENCE_TIMEOUT = 60000;      // 60s
+        const MAX_FIREBASE_UPDATES_PER_SEC = 2;
+        const RAF_THROTTLE_MS = 100;
+        
+        // ==================== STATE ====================
+        let currentUser = null;
+        let currentRoomId = null;
+        let currentRoomData = null;
+        let isRoomOwner = false;
+        let videoElement = null;
+        let clockOffset = 0;
+        let lastKeyframeTime = 0;
+        let lastDriftValue = null;
+        let activeIntervals = [];
+        let activeListeners = [];
+        
+        // Smart Sync State
+        let syncState = {
+            isWaiting: false,
+            targetTime: 0,
+            startWaitTimestamp: 0,
+            countdownInterval: null,
+            bufferCheckInterval: null
+        };
+        
+        // Performance optimizations
+        let firebaseUpdateQueue = [];
+        let isProcessingQueue = false;
+        let lastFirebaseUpdate = 0;
+        let rafQueue = [];
+        let isProcessingRAF = false;
+        let lastRAFTime = 0;
+        let elementCache = {};
+        let lastUIUpdate = 0;
+        
+        // ==================== HELPER FUNCTIONS ====================
+        function debugLog(msg) {
+            console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
+        }
+        
+        function getCachedElement(id) {
+            if (!elementCache[id]) {
+                elementCache[id] = document.getElementById(id);
+            }
+            return elementCache[id];
+        }
+        
+        function trackInterval(interval) {
+            activeIntervals.push(interval);
+            return interval;
+        }
+        
+        function trackListener(ref, eventType, callback) {
+            activeListeners.push({ ref, eventType, callback });
+            ref.on(eventType, callback);
+        }
+        
+        function fullCleanup() {
+            try {
+                // Stop sync if active
+                stopSmartSync();
+                
+                // Clear intervals
+                activeIntervals.forEach(interval => clearInterval(interval));
+                activeIntervals = [];
+                
+                // Remove listeners
+                activeListeners.forEach(({ ref, eventType, callback }) => {
+                    ref.off(eventType, callback);
+                });
+                activeListeners = [];
+                
+                // Clear queues
+                firebaseUpdateQueue = [];
+                rafQueue = [];
+                
+                // Remove presence
+                if (currentUser && currentRoomId) {
+                    db.ref('rooms/' + currentRoomId + '/activeViewers/' + currentUser.uid).remove();
+                }
+                
+                debugLog('🧹 Full cleanup completed');
+            } catch (error) {
+                console.warn('Cleanup error:', error);
+            }
+        }
+        
+        // ==================== FIREBASE QUEUE SYSTEM ====================
+        function shouldUpdateFirebase() {
+            const now = Date.now();
+            const timeSinceLastUpdate = now - lastFirebaseUpdate;
+            return timeSinceLastUpdate >= (1000 / MAX_FIREBASE_UPDATES_PER_SEC);
+        }
+        
+        function queueFirebaseUpdate(path, value) {
+            firebaseUpdateQueue.push({ path, value, timestamp: Date.now() });
+            processFirebaseQueue();
+        }
+        
+        function processFirebaseQueue() {
+            if (isProcessingQueue || firebaseUpdateQueue.length === 0) return;
+            if (!shouldUpdateFirebase()) {
+                setTimeout(processFirebaseQueue, 100);
+                return;
+            }
+            
+            isProcessingQueue = true;
+            const updates = {};
+            const batch = firebaseUpdateQueue.splice(0, 5);
+            
+            batch.forEach(item => {
+                updates['rooms/' + currentRoomId + '/' + item.path] = item.value;
+            });
+            
+            db.ref().update(updates)
+                .then(() => {
+                    lastFirebaseUpdate = Date.now();
+                })
+                .catch(error => console.warn('Firebase update error:', error))
+                .finally(() => {
+                    isProcessingQueue = false;
+                    if (firebaseUpdateQueue.length > 0) {
+                        setTimeout(processFirebaseQueue, 100);
+                    }
+                });
+        }
+        
+        // ==================== RAF QUEUE SYSTEM ====================
+        function shouldUpdateUI() {
+            const now = Date.now();
+            return (now - lastUIUpdate) >= RAF_THROTTLE_MS;
+        }
+        
+        function queueRAF(callback) {
+            rafQueue.push(callback);
+            processRAFQueue();
+        }
+        
+        function processRAFQueue() {
+            if (isProcessingRAF || rafQueue.length === 0) return;
+            if (!shouldUpdateUI()) {
+                requestAnimationFrame(processRAFQueue);
+                return;
+            }
+            
+            isProcessingRAF = true;
+            requestAnimationFrame(() => {
+                const batch = rafQueue.splice(0, 10);
+                batch.forEach(callback => {
+                    try {
+                        callback();
+                    } catch (error) {
+                        console.warn('RAF callback error:', error);
+                    }
+                });
+                lastUIUpdate = Date.now();
+                isProcessingRAF = false;
+                
+                if (rafQueue.length > 0) {
+                    processRAFQueue();
+                }
+            });
+        }
+        
+        // ==================== AUTH ====================
+        function anonymousLogin() {
+            const username = getCachedElement('username-input').value.trim();
+            if (!username) {
+                alert('Lütfen bir kullanıcı adı girin!');
+                return;
+            }
+            
+            auth.signInAnonymously()
+                .then(result => {
+                    currentUser = result.user;
+                    db.ref('users/' + currentUser.uid).set({
+                        username: username,
+                        lastSeen: firebase.database.ServerValue.TIMESTAMP
+                    });
+                    
+                    getCachedElement('auth-section').classList.add('hidden');
+                    getCachedElement('room-section').classList.remove('hidden');
+                    debugLog('✅ Logged in: ' + username);
+                })
+                .catch(error => {
+                    alert('Giriş hatası: ' + error.message);
+                });
+        }
+        
+        // ==================== ROOM MANAGEMENT ====================
+        function createRoom() {
+            if (!currentUser) return;
+            
+            const roomName = getCachedElement('room-name-input').value.trim();
+            const videoType = getCachedElement('video-type-select').value;
+            const videoUrl = getCachedElement('video-url-input').value.trim();
+            
+            if (!roomName || !videoUrl) {
+                alert('Lütfen tüm alanları doldurun!');
+                return;
+            }
+            
+            const roomId = 'room_' + Date.now();
+            const roomData = {
+                name: roomName,
+                owner: currentUser.uid,
+                videoType: videoType,
+                videoUrl: videoUrl,
+                createdAt: firebase.database.ServerValue.TIMESTAMP,
+                currentTime: 0,
+                paused: true
+            };
+            
+            db.ref('rooms/' + roomId).set(roomData)
+                .then(() => {
+                    debugLog('✅ Room created: ' + roomId);
+                    joinRoom(roomId);
+                })
+                .catch(error => {
+                    alert('Oda oluşturma hatası: ' + error.message);
+                });
+        }
+        
+        function loadRoomList() {
+            const roomList = getCachedElement('room-list');
+            roomList.innerHTML = '<p>Yükleniyor...</p>';
+            
+            db.ref('rooms').once('value')
+                .then(snapshot => {
+                    roomList.innerHTML = '';
+                    if (!snapshot.exists()) {
+                        roomList.innerHTML = '<p>Henüz oda yok.</p>';
+                        return;
+                    }
+                    
+                    snapshot.forEach(childSnapshot => {
+                        const room = childSnapshot.val();
+                        const roomId = childSnapshot.key;
+                        
+                        const roomItem = document.createElement('div');
+                        roomItem.className = 'room-item';
+                        roomItem.onclick = () => joinRoom(roomId);
+                        
+                        roomItem.innerHTML = `
+                            <div class="room-name">${room.name}</div>
+                            <div class="room-details">Tür: ${room.videoType}</div>
+                        `;
+                        
+                        roomList.appendChild(roomItem);
+                    });
+                })
+                .catch(error => {
+                    roomList.innerHTML = '<p>Hata: ' + error.message + '</p>';
+                });
+        }
+        
+        function joinRoom(roomId) {
+            if (!currentUser) return;
+            
+            db.ref('rooms/' + roomId).once('value')
+                .then(snapshot => {
+                    if (!snapshot.exists()) {
+                        alert('Oda bulunamadı!');
+                        return;
+                    }
+                    
+                    currentRoomId = roomId;
+                    currentRoomData = snapshot.val();
+                    isRoomOwner = (currentRoomData.owner === currentUser.uid);
+                    
+                    // Initialize video
+                    videoElement = getCachedElement('video-screen');
+                    videoElement.src = currentRoomData.videoUrl;
+                    videoElement.load();
+                    
+                    // Hide UI, show VR
+                    getCachedElement('ui-overlay').classList.add('hidden');
+                    getCachedElement('room-info').style.display = 'block';
+                    getCachedElement('sync-status').style.display = 'block';
+                    
+                    if (isRoomOwner) {
+                        getCachedElement('vr-controls').style.display = 'flex';
+                    }
+                    
+                    // Setup room
+                    setupRoom();
+                    debugLog('✅ Joined room: ' + roomId + (isRoomOwner ? ' (Owner)' : ' (Viewer)'));
+                })
+                .catch(error => {
+                    alert('Odaya katılma hatası: ' + error.message);
+                });
+        }
+        
+        function setupRoom() {
+            // Register presence
+            db.ref('rooms/' + currentRoomId + '/activeViewers/' + currentUser.uid).set({
+                username: currentUser.uid,
+                joinedAt: firebase.database.ServerValue.TIMESTAMP,
+                lastSeen: firebase.database.ServerValue.TIMESTAMP,
+                currentTime: 0,
+                currentDrift: 0
+            });
+            
+            // Remove on disconnect
+            db.ref('rooms/' + currentRoomId + '/activeViewers/' + currentUser.uid).onDisconnect().remove();
+            
+            // Initialize clock sync
+            initClockSync();
+            
+            // Listen to keyframes (viewers only)
+            if (!isRoomOwner) {
+                listenToKeyframes();
+            }
+            
+            // Start periodic tasks
+            startPeriodicTasks();
+            
+            // Start owner tasks
+            if (isRoomOwner) {
+                startOwnerTasks();
+            }
+            
+            // Update UI
+            updateRoomInfoDisplay();
+        }
+        
+        // ==================== CLOCK SYNC ====================
+        function initClockSync() {
+            const startTime = Date.now();
+            
+            db.ref('.info/serverTimeOffset').once('value')
+                .then(snapshot => {
+                    const offset = snapshot.val() || 0;
+                    const rtt = Date.now() - startTime;
+                    clockOffset = offset + (rtt / 2);
+                    debugLog(`🕒 Clock synced (offset: ${clockOffset}ms, RTT: ${rtt}ms)`);
+                })
+                .catch(() => {
+                    clockOffset = 0;
+                });
+        }
+        
+        function getServerTime() {
+            return Date.now() + clockOffset;
+        }
+        
+        // ==================== SMART SYNC MECHANISM ====================
+        function startSmartSync(targetSeek, ownerTimestamp) {
+            // Already syncing
+            if (syncState.isWaiting) {
+                stopSmartSync();
+            }
+            
+            syncState.isWaiting = true;
+            syncState.targetTime = targetSeek + (PREBUFFER_TIME / 1000); // +7 seconds
+            syncState.startWaitTimestamp = ownerTimestamp;
+            
+            // Seek to target position
+            videoElement.currentTime = syncState.targetTime;
+            videoElement.pause();
+            
+            // Show sync overlay
+            const syncOverlay = getCachedElement('sync-overlay');
+            syncOverlay.classList.add('active');
+            
+            debugLog(`🔄 Smart sync started: seeking to ${syncState.targetTime.toFixed(1)}s (owner at ${targetSeek.toFixed(1)}s)`);
+            
+            // Countdown timer
+            let remainingSeconds = Math.ceil(PREBUFFER_TIME / 1000);
+            const countdownElement = getCachedElement('sync-countdown');
+            
+            syncState.countdownInterval = setInterval(() => {
+                const elapsed = getServerTime() - syncState.startWaitTimestamp;
+                remainingSeconds = Math.max(0, Math.ceil((PREBUFFER_TIME - elapsed) / 1000));
+                
+                countdownElement.textContent = remainingSeconds;
+                
+                if (remainingSeconds === 0) {
+                    finishSmartSync();
+                }
+            }, 100);
+            
+            // Buffer check
+            syncState.bufferCheckInterval = setInterval(() => {
+                updateBufferDisplay();
+            }, 200);
+        }
+        
+        function updateBufferDisplay() {
+            if (!videoElement || !syncState.isWaiting) return;
+            
+            try {
+                const buffered = videoElement.buffered;
+                let bufferPercent = 0;
+                
+                if (buffered.length > 0) {
+                    for (let i = 0; i < buffered.length; i++) {
+                        if (buffered.start(i) <= syncState.targetTime && 
+                            buffered.end(i) >= syncState.targetTime) {
+                            const bufferEnd = buffered.end(i);
+                            const bufferAhead = bufferEnd - syncState.targetTime;
+                            bufferPercent = Math.min(100, (bufferAhead / 10) * 100);
+                            break;
+                        }
+                    }
+                }
+                
+                const bufferFill = getCachedElement('buffer-fill');
+                const bufferText = getCachedElement('buffer-percent');
+                
+                if (bufferFill) bufferFill.style.width = bufferPercent + '%';
+                if (bufferText) bufferText.textContent = Math.round(bufferPercent);
+            } catch (error) {
+                console.warn('Buffer check error:', error);
+            }
+        }
+        
+        function finishSmartSync() {
+            debugLog('✅ Smart sync complete - starting playback');
+            
+            // Clear intervals
+            if (syncState.countdownInterval) {
+                clearInterval(syncState.countdownInterval);
+            }
+            if (syncState.bufferCheckInterval) {
+                clearInterval(syncState.bufferCheckInterval);
+            }
+            
+            // Hide overlay
+            const syncOverlay = getCachedElement('sync-overlay');
+            syncOverlay.classList.remove('active');
+            
+            // Start playback
+            if (currentRoomData && !currentRoomData.paused) {
+                videoElement.play().catch(error => {
+                    console.warn('Playback error:', error);
+                });
+            }
+            
+            // Reset state
+            syncState.isWaiting = false;
+        }
+        
+        function stopSmartSync() {
+            if (!syncState.isWaiting) return;
+            
+            debugLog('⏹️ Stopping smart sync');
+            
+            if (syncState.countdownInterval) {
+                clearInterval(syncState.countdownInterval);
+            }
+            if (syncState.bufferCheckInterval) {
+                clearInterval(syncState.bufferCheckInterval);
+            }
+            
+            const syncOverlay = getCachedElement('sync-overlay');
+            syncOverlay.classList.remove('active');
+            
+            syncState.isWaiting = false;
+        }
+        
+        // ==================== VIDEO SYNC (UPDATED) ====================
+        function syncVideoToKeyframe(keyframeData) {
+            if (!videoElement || !keyframeData) return;
+            
+            // If already in smart sync and owner paused, pause our video too
+            if (syncState.isWaiting && keyframeData.paused) {
+                videoElement.pause();
+                return;
+            }
+            
+            const currentTime = videoElement.currentTime;
+            const serverTime = getServerTime();
+            const keyframeAge = serverTime - keyframeData.timestamp;
+            const estimatedOwnerTime = keyframeData.currentTime + (keyframeAge / 1000);
+            const drift = Math.abs(estimatedOwnerTime - currentTime) * 1000;
+            
+            updateSyncStatus(drift);
+            
+            // Sync paused state
+            if (keyframeData.paused !== videoElement.paused) {
+                if (keyframeData.paused) {
+                    videoElement.pause();
+                    stopSmartSync(); // Cancel sync if owner paused
+                } else {
+                    // Owner resumed - if we were waiting, continue waiting
+                    if (!syncState.isWaiting) {
+                        videoElement.play().catch(() => {});
+                    }
+                }
+            }
+            
+            // If owner paused, exact sync
+            if (keyframeData.paused) {
+                if (drift > 500) {
+                    videoElement.currentTime = keyframeData.currentTime;
+                    debugLog(`⏸️ Paused sync: ${drift.toFixed(0)}ms drift corrected`);
+                }
+                return;
+            }
+            
+            // If in smart sync mode, don't interfere
+            if (syncState.isWaiting) {
+                return;
+            }
+            
+            // Tier 1: Gentle correction (< 3s)
+            if (drift < TIER1_THRESHOLD) {
+                const adjustment = (estimatedOwnerTime - currentTime) * 0.1;
+                videoElement.currentTime += adjustment;
+                debugLog(`🎯 Tier 1: ${drift.toFixed(0)}ms drift, adjusted ${(adjustment * 1000).toFixed(0)}ms`);
+            }
+            // Tier 2: Moderate correction (3s - 10s)
+            else if (drift < TIER2_THRESHOLD) {
+                const adjustment = (estimatedOwnerTime - currentTime) * 0.5;
+                videoElement.currentTime += adjustment;
+                debugLog(`⚡ Tier 2: ${drift.toFixed(0)}ms drift, adjusted ${(adjustment * 1000).toFixed(0)}ms`);
+            }
+            // Tier 3: SMART SYNC (> 10s)
+            else {
+                debugLog(`🚀 Tier 3: ${drift.toFixed(0)}ms drift - starting smart sync`);
+                startSmartSync(keyframeData.currentTime, keyframeData.timestamp);
+            }
+        }
+        
+        // ==================== OWNER CONTROLS ====================
+        function playVideo() {
+            if (!isRoomOwner || !videoElement) return;
+            
+            videoElement.play()
+                .then(() => {
+                    queueFirebaseUpdate('paused', false);
+                    sendKeyframe();
+                    debugLog('▶️ Video playing');
+                })
+                .catch(error => console.warn('Play error:', error));
+        }
+        
+        function pauseVideo() {
+            if (!isRoomOwner || !videoElement) return;
+            
+            videoElement.pause();
+            queueFirebaseUpdate('paused', true);
+            sendKeyframe();
+            debugLog('⏸️ Video paused');
+        }
+        
+        function seekForward() {
+            if (!isRoomOwner || !videoElement) return;
+            
+            videoElement.currentTime = Math.min(
+                videoElement.currentTime + 10,
+                videoElement.duration
+            );
+            sendKeyframe();
+            debugLog('⏩ Seek +10s');
+        }
+        
+        function seekBackward() {
+            if (!isRoomOwner || !videoElement) return;
+            
+            videoElement.currentTime = Math.max(
+                videoElement.currentTime - 10,
+                0
+            );
+            sendKeyframe();
+            debugLog('⏪ Seek -10s');
+        }
+        
+        // ==================== KEYFRAME SYSTEM ====================
+        function sendKeyframe() {
+            if (!isRoomOwner || !videoElement) return;
+            
+            try {
+                const keyframeData = {
+                    currentTime: videoElement.currentTime,
+                    paused: videoElement.paused,
+                    timestamp: getServerTime()
+                };
+                
+                queueFirebaseUpdate('keyframes/' + Date.now(), keyframeData);
+                lastKeyframeTime = Date.now();
+                
+                debugLog(`📡 Keyframe: ${keyframeData.currentTime.toFixed(1)}s, ${keyframeData.paused ? 'paused' : 'playing'}`);
+            } catch (error) {
+                console.warn('Keyframe send error:', error);
+            }
+        }
+        
+        function listenToKeyframes() {
+            const keyframesRef = db.ref('rooms/' + currentRoomId + '/keyframes');
+            
+            trackListener(keyframesRef, 'child_added', (snapshot) => {
+                const keyframeData = snapshot.val();
+                if (keyframeData && keyframeData.timestamp) {
+                    queueRAF(() => syncVideoToKeyframe(keyframeData));
+                }
+            });
+            
+            debugLog('👂 Listening to keyframes');
+        }
+        
+        // ==================== VIEWER POSITION TRACKING ====================
+        function updateViewerPosition() {
+            if (!currentUser || !currentRoomId || !videoElement) return;
+            
+            try {
+                if (shouldUpdateFirebase()) {
+                    queueFirebaseUpdate(
+                        'activeViewers/' + currentUser.uid + '/currentTime',
+                        videoElement.currentTime
+                    );
+                }
+            } catch (error) {
+                console.warn('Position update error:', error);
+            }
+        }
+        
+        function trackDrift() {
+            if (!currentRoomData || !videoElement || isRoomOwner) return;
+            
+            try {
+                const drift = Math.abs(currentRoomData.currentTime - videoElement.currentTime) * 1000;
+                
+                if (lastDriftValue === null || Math.abs(drift - lastDriftValue) > 1000) {
+                    if (shouldUpdateFirebase()) {
+                        queueFirebaseUpdate(
+                            'activeViewers/' + currentUser.uid + '/currentDrift',
+                            drift
+                        );
+                        lastDriftValue = drift;
+                    }
+                }
+            } catch (error) {
+                console.warn('Drift tracking error:', error);
+            }
+        }
+        
+        function updatePresence() {
+            if (!currentUser || !currentRoomId) return;
+            
+            try {
+                queueFirebaseUpdate(
+                    'activeViewers/' + currentUser.uid + '/lastSeen',
+                    firebase.database.ServerValue.TIMESTAMP
+                );
+            } catch (error) {
+                console.warn('Presence update error:', error);
+            }
+        }
+        
+        function checkOwnerPresence() {
+            if (!isRoomOwner && currentRoomData && currentUser) {
+                db.ref('rooms/' + currentRoomId + '/activeViewers/' + currentRoomData.owner).once('value')
+                    .then(snapshot => {
+                        const ownerData = snapshot.val();
+                        if (!ownerData || (Date.now() - ownerData.lastSeen > OWNER_PRESENCE_TIMEOUT)) {
+                            db.ref('rooms/' + currentRoomId + '/activeViewers').once('value')
+                                .then(viewersSnapshot => {
+                                    const viewers = viewersSnapshot.val();
+                                    if (viewers) {
+                                        const newOwner = Object.keys(viewers)[0];
+                                        if (newOwner === currentUser.uid) {
+                                            db.ref('rooms/' + currentRoomId).update({ owner: newOwner });
+                                            isRoomOwner = true;
+                                            debugLog('👑 Ownership transferred to you');
+                                        }
+                                    }
+                                });
+                        }
+                    })
+                    .catch(() => {});
+            }
+        }
+        
+        // ==================== UI UPDATES ====================
+        function updateRoomInfoDisplay() {
+            if (!currentRoomData) return;
+            getCachedElement('room-name-display').textContent = currentRoomData.name;
+            updateViewerCount();
+        }
+        
+        function updateViewerCount() {
+            if (!currentRoomId || !shouldUpdateUI()) return;
+            
+            db.ref('rooms/' + currentRoomId + '/activeViewers').once('value')
+                .then(snapshot => {
+                    const count = snapshot.numChildren();
+                    queueRAF(() => {
+                        const viewerElement = getCachedElement('viewer-count');
+                        if (viewerElement) {
+                            viewerElement.textContent = `👥 ${count} izleyici`;
+                        }
+                    });
+                })
+                .catch(() => {});
+        }
+        
+        function cleanupOldData() {
+            if (!currentRoomId || !isRoomOwner) return;
+            
+            try {
+                const cutoffTime = Date.now() - 60000;
+                
+                db.ref('rooms/' + currentRoomId + '/keyframes').once('value')
+                    .then(snapshot => {
+                        if (snapshot.exists()) {
+                            snapshot.forEach(child => {
+                                const data = child.val();
+                                if (data.timestamp && data.timestamp < cutoffTime) {
+                                    child.ref.remove().catch(() => {});
+                                }
+                            });
+                        }
+                    })
+                    .catch(() => {});
+                
+                db.ref('rooms/' + currentRoomId + '/activeViewers').once('value')
+                    .then(snapshot => {
+                        if (snapshot.exists()) {
+                            snapshot.forEach(child => {
+                                const viewer = child.val();
+                                if (viewer.lastSeen && (Date.now() - viewer.lastSeen > 60000)) {
+                                    child.ref.remove().catch(() => {});
+                                }
+                            });
+                        }
+                    })
+                    .catch(() => {});
+                
+                debugLog('🧹 Cleanup old data');
+            } catch (error) {
+                console.warn('Cleanup error:', error);
+            }
+        }
+        
+        function updateSyncStatus(drift) {
+            if (!shouldUpdateUI()) return;
+            
+            queueRAF(() => {
+                const statusText = getCachedElement('sync-text');
+                if (!statusText) return;
+                
+                if (drift < TIER1_THRESHOLD) {
+                    statusText.textContent = '✅ Senkronize';
+                    statusText.className = 'status-good';
+                } else if (drift < TIER2_THRESHOLD) {
+                    statusText.textContent = '⚠️ Hafif sapma';
+                    statusText.className = 'status-warning';
+                } else {
+                    statusText.textContent = '🔄 Senkronize ediliyor...';
+                    statusText.className = 'status-warning';
+                }
+            });
+        }
+        
+        // ==================== PERIODIC TASKS ====================
+        function startPeriodicTasks() {
+            trackInterval(setInterval(initClockSync, CLOCK_SYNC_INTERVAL));
+            trackInterval(setInterval(trackDrift, DRIFT_UPDATE_INTERVAL));
+            trackInterval(setInterval(updatePresence, PRESENCE_UPDATE_INTERVAL));
+            trackInterval(setInterval(updateViewerCount, 5000));
+            trackInterval(setInterval(updateViewerPosition, 3000));
+            
+            if (!isRoomOwner) {
+                trackInterval(setInterval(checkOwnerPresence, 30000));
+            }
+            
+            debugLog('✅ Periodic tasks started');
+        }
+        
+        function startOwnerTasks() {
+            trackInterval(setInterval(sendKeyframe, KEYFRAME_INTERVAL));
+            trackInterval(setInterval(cleanupOldData, CLEANUP_INTERVAL));
+            debugLog('👑 Owner tasks started');
+        }
+        
+        // ==================== INIT ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🎬 VR Cinema ULTRA - Smart Sync v3.0 Ready!');
+            
+            const scene = document.querySelector('a-scene');
+            if (scene) {
+                scene.addEventListener('enter-vr', () => {
+                    const cursor = getCachedElement('vr-cursor');
+                    if (cursor) {
+                        cursor.setAttribute('visible', 'true');
+                        debugLog('👓 VR mode: Raycaster enabled');
+                    }
+                });
+                
+                scene.addEventListener('exit-vr', () => {
+                    const cursor = getCachedElement('vr-cursor');
+                    if (cursor) {
+                        cursor.setAttribute('visible', 'false');
+                        debugLog('👓 VR mode exit: Raycaster disabled');
+                    }
+                });
+            }
+            
+            document.addEventListener('keydown', (e) => {
+                if (!currentRoomId || !isRoomOwner) return;
+                
+                switch(e.key) {
+                    case ' ':
+                        e.preventDefault();
+                        if (videoElement && videoElement.paused) {
+                            playVideo();
+                        } else {
+                            pauseVideo();
+                        }
+                        break;
+                    case 'ArrowLeft':
+                        e.preventDefault();
+                        seekBackward();
+                        break;
+                    case 'ArrowRight':
+                        e.preventDefault();
+                        seekForward();
+                        break;
+                }
+            });
+        });
+        
+        window.addEventListener('beforeunload', () => {
+            fullCleanup();
+        });
+    </script>
+</body>
+</html>

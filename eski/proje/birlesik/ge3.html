@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR Sosyal Sinema</title>
+    
+    <!-- A-Frame (VR Kütüphanesi) -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <!-- A-Frame Environment Component (Hazır çevreler için) -->
+    <script src="https://unpkg.com/aframe-environment-component@1.3.3/dist/aframe-environment-component.min.js"></script>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <!-- Tailwind CSS (Arayüz için) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        /* Video kontrol paneli (VR dışında 2D arayüz) */
+        #ui-layer {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            width: 90%;
+            max-width: 600px;
+            pointer-events: auto; /* VR içinde tıklamayı engellememesi için dikkat */
+        }
+        
+        /* Başlangıç ekranı */
+        #start-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #e50914;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <!-- Başlangıç / Giriş Ekranı -->
+    <div id="start-screen">
+        <h1 class="text-4xl font-bold mb-4 text-red-600">VR SİNEMA</h1>
+        <p class="mb-8 text-gray-300">20+ Kişilik Senkronize Film Deneyimi</p>
+        
+        <div id="loading" class="loader mb-4"></div>
+        
+        <div id="login-btn" class="hidden">
+            <button onclick="enterCinema()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-full transition transform hover:scale-105">
+                SALONA GİR
+            </button>
+            <p class="mt-4 text-sm text-gray-500">Sesin açılması için tıklamanız gereklidir.</p>
+        </div>
+        
+        <div id="status-text" class="mt-4 text-yellow-500 text-sm">Bağlanıyor...</div>
+    </div>
+
+    <!-- 2D Kontrol Paneli (Ekranın altında) -->
+    <div id="ui-layer" class="hidden">
+        <div class="bg-black bg-opacity-80 p-4 rounded-xl border border-gray-800 backdrop-blur-sm">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-white text-sm font-bold flex items-center">
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+                    CANLI YAYIN
+                </span>
+                <span class="text-gray-400 text-xs" id="viewer-count">İzleyici: 1</span>
+            </div>
+            
+            <div class="flex gap-2">
+                <button id="btn-play" onclick="togglePlay()" class="flex-1 bg-white text-black py-2 rounded font-bold hover:bg-gray-200">
+                    Oynat/Duraklat
+                </button>
+                <button onclick="syncNow()" class="bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-600" title="Zamanı Eşitle">
+                    Senkronize Et
+                </button>
+                <button onclick="toggleVR()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                    VR Modu
+                </button>
+            </div>
+            <div class="mt-2 text-center text-xs text-gray-500">
+                Kontroller tüm izleyicileri etkiler.
+            </div>
+        </div>
+    </div>
+
+    <!-- A-Frame VR Sahnesi -->
+    <a-scene embedded loading-screen="dotsColor: red; backgroundColor: black">
+        <a-assets>
+            <!-- Örnek Film: Big Buck Bunny (Public Domain) -->
+            <!-- crossOrigin="anonymous" çok önemlidir, yoksa ekran siyah kalır -->
+            <video id="cinema-video" 
+                   src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+                   preload="auto" 
+                   crossorigin="anonymous" 
+                   playsinline 
+                   webkit-playsinline></video>
+                   
+            <img id="seat-texture" src="https://cdn.aframe.io/360-image-gallery-boilerplate/img/city.jpg">
+        </a-assets>
+
+        <!-- Sinema Perdesi (Kavisli) -->
+        <!-- position: x y z (yükseklik, derinlik) -->
+        <a-videosphere src="#cinema-video" radius="40" theta-length="70" theta-start="55" rotation="0 180 0" side="back"></a-videosphere>
+        
+        <!-- Daha düz bir ekran isterseniz bunu açın, videosphere'i kapatın -->
+        <!-- <a-video src="#cinema-video" width="16" height="9" position="0 4 -10"></a-video> -->
+
+        <!-- Çevre / Atmosfer -->
+        <a-entity environment="preset: starry; groundColor: #111; grid: none; lightPosition: 0 10 0"></a-entity>
+
+        <!-- Işıklandırma -->
+        <a-light type="ambient" color="#222"></a-light>
+        <a-light type="point" intensity="0.5" position="0 5 0" color="#333"></a-light>
+
+        <!-- Zemin / Koltuk hizası -->
+        <a-plane position="0 0 0" rotation="-90 0 0" width="100" height="100" color="#050505"></a-plane>
+
+        <!-- Kullanıcı Kamerası -->
+        <a-entity id="rig" position="0 1.6 0">
+            <a-entity camera look-controls></a-entity>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        // --- 1. FIREBASE YAPILANDIRMASI ---
+        const userConfig = {
+            apiKey: "AIzaSyC60idSLdAiqAjPWAOMaM3g8LAKPGEUwH8",
+            authDomain: "vr-sinema.firebaseapp.com",
+            projectId: "vr-sinema",
+            storageBucket: "vr-sinema.firebasestorage.app",
+            messagingSenderId: "724648238300",
+            appId: "1:724648238300:web:dceba8c536e8a5ffd96819"
+        };
+
+        // Canvas ortamında mıyız kontrol et, yoksa kullanıcının configini kullan
+        const firebaseConfig = (typeof __firebase_config !== 'undefined') 
+            ? JSON.parse(__firebase_config) 
+            : userConfig;
+
+        // App ID (Canvas için özel, dışarıda sabit)
+        const myAppId = (typeof __app_id !== 'undefined') ? __app_id : 'vr-sinema-public';
+
+        // Firebase Başlatma
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // Global Değişkenler
+        let isInitiator = false; // Eylemi ben mi başlattım?
+        let unsubscribe = null;
+        const videoEl = document.getElementById('cinema-video');
+        const statusText = document.getElementById('status-text');
+        const loadingSpinner = document.getElementById('loading');
+        const loginBtn = document.getElementById('login-btn');
+        const uiLayer = document.getElementById('ui-layer');
+
+        // Firestore Koleksiyon Yolu (Sistem kurallarına uygun)
+        // Public bir oda kullanıyoruz: "main_hall"
+        const COLLECTION_PATH = `artifacts/${myAppId}/public/data/cinema_rooms`;
+        const DOC_ID = 'main_hall';
+
+        // --- 2. AUTH VE BAŞLANGIÇ ---
+        async function initApp() {
+            try {
+                // Anonim giriş yap
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await auth.signInWithCustomToken(__initial_auth_token);
+                } else {
+                    await auth.signInAnonymously();
+                }
+
+                firebase.auth().onAuthStateChanged((user) => {
+                    if (user) {
+                        statusText.innerText = "Bağlantı başarılı. Giriş bekleniyor...";
+                        statusText.classList.remove('text-yellow-500');
+                        statusText.classList.add('text-green-500');
+                        loadingSpinner.style.display = 'none';
+                        loginBtn.classList.remove('hidden');
+                    }
+                });
+            } catch (error) {
+                console.error("Auth Hatası:", error);
+                statusText.innerText = "Hata: " + error.message;
+            }
+        }
+
+        // --- 3. SİNEMA MANTIĞI ---
+        
+        function enterCinema() {
+            document.getElementById('start-screen').style.display = 'none';
+            uiLayer.classList.remove('hidden');
+            
+            // Ses bağlamını başlat (Tarayıcı politikası gereği tıklama ile olur)
+            videoEl.volume = 1.0; 
+            
+            // Firestore dinlemeye başla
+            startSync();
+        }
+
+        function startSync() {
+            const docRef = db.collection(COLLECTION_PATH).doc(DOC_ID); // Hatalı kullanım düzeltildi: collection() içinde tek string
+
+            // Yolu manuel oluşturuyoruz çünkü firebase compat sürümü kullanıyoruz
+            const roomRef = db.doc(`${COLLECTION_PATH}/${DOC_ID}`);
+
+            unsubscribe = roomRef.onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    handleRemoteUpdate(data);
+                } else {
+                    // Belge yoksa oluştur (İlk kullanım)
+                    roomRef.set({
+                        isPlaying: false,
+                        timestamp: 0,
+                        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            }, (error) => {
+                console.error("Veri alma hatası:", error);
+            });
+        }
+
+        // Uzaktan gelen veriyi işle
+        function handleRemoteUpdate(data) {
+            // Eğer güncelleme çok yeniyse ve biz yaptıysak (zaman damgası kontrolü eklenebilir), atla.
+            // Ama basitlik için: Remote'tan gelen emir kesindir.
+
+            const timeDiff = Math.abs(videoEl.currentTime - data.timestamp);
+            
+            // 1. Durum (Play/Pause) Senkronizasyonu
+            if (data.isPlaying && videoEl.paused) {
+                videoEl.play().catch(e => console.log("Oynatma hatası (kullanıcı etkileşimi gerek):", e));
+            } else if (!data.isPlaying && !videoEl.paused) {
+                videoEl.pause();
+            }
+
+            // 2. Zaman Senkronizasyonu (Drift Correction)
+            // Eğer fark 2 saniyeden fazlaysa atla. Küçük farkları görmezden gel (takılmayı önler).
+            if (timeDiff > 2) {
+                console.log(`Zaman senkronize ediliyor. Yerel: ${videoEl.currentTime}, Sunucu: ${data.timestamp}`);
+                videoEl.currentTime = data.timestamp;
+            }
+            
+            updateUI(data.isPlaying);
+        }
+
+        // --- 4. KONTROLLER VE GÖNDERİM ---
+
+        // Oynat/Durdur butonuna basıldığında
+        function togglePlay() {
+            const isPaused = videoEl.paused;
+            const newStatus = !isPaused; // Şu an duruyorsa oynat (true), oynuyorsa durdur (false)
+            
+            updateServerState(newStatus, videoEl.currentTime);
+        }
+
+        // "Senkronize Et" butonu (Zorla eşitleme)
+        function syncNow() {
+             // Sadece sunucudaki en son veriyi çekmesini sağlamak için aslında hiçbir şey yapmamıza gerek yok
+             // onSnapshot zaten çalışıyor. Ancak manuel tetikleme istenirse:
+             // Burada manuel olarak kendi zamanımızı sunucuya da yazabiliriz veya tam tersi.
+             // Biz "Beni sunucuya götür" değil "Herkesi buraya topla" mantığı yapalım:
+             updateServerState(!videoEl.paused, videoEl.currentTime);
+        }
+
+        // Sunucuya durum gönder
+        function updateServerState(playing, time) {
+            const roomRef = db.doc(`${COLLECTION_PATH}/${DOC_ID}`);
+            
+            roomRef.set({
+                isPlaying: playing,
+                timestamp: time,
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true }).catch(err => console.error("Yazma hatası:", err));
+        }
+
+        // UI Güncelleme
+        function updateUI(isPlaying) {
+            const btn = document.getElementById('btn-play');
+            if (isPlaying) {
+                btn.innerText = "DURAKLAT ||";
+                btn.classList.add('bg-red-100');
+            } else {
+                btn.innerText = "OYNAT ▶";
+                btn.classList.remove('bg-red-100');
+            }
+        }
+        
+        function toggleVR() {
+            const scene = document.querySelector('a-scene');
+            scene.enterVR();
+        }
+
+        // Video Event Listeners (Seek yapıldığında tetiklenmesi için)
+        // Not: 'play' ve 'pause' eventlerini dinlersek sonsuz döngü riski olur. 
+        // Bu yüzden güncellemeleri sadece butonlar üzerinden manuel yapıyoruz.
+        // Ancak 'seeked' (sarma) işlemi manuel yapılırsa sunucuya bildirelim.
+        
+        let isSeeking = false;
+        videoEl.addEventListener('seeking', () => { isSeeking = true; });
+        videoEl.addEventListener('seeked', () => { 
+            // Eğer bu seek işlemi kullanıcı tarafından yapıldıysa sunucuyu güncelle
+            // (Bunu tam ayırt etmek zor olduğu için basitçe her seek'te güncelleme atıyoruz)
+            // Ancak onSnapshot döngüsünü kırmak için timeDiff kontrolü yukarıda yapıldı.
+            if(isSeeking) {
+                updateServerState(!videoEl.paused, videoEl.currentTime);
+                isSeeking = false;
+            }
+        });
+
+        // Uygulamayı başlat
+        initApp();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR Sinema - Sosyal İzleme</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-environment-component@1.3.2/dist/aframe-environment-component.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- 2D UI Overlay -->
+<div id="ui-overlay">
+    <div class="ui-container">
+        <h1>🎬 VR Sosyal Sinema</h1>
+        
+        <!-- Ana Menü -->
+        <div id="main-menu">
+            <h2>Hoş Geldiniz</h2>
+            <button onclick="showCreateRoom()">➕ Yeni Oda Oluştur</button>
+            <button onclick="showRoomList()" class="secondary">🚪 Odalara Gözat</button>
+        </div>
+        
+        <!-- Oda Oluşturma -->
+        <div id="create-room" style="display: none;">
+            <h2>Yeni Oda Oluştur</h2>
+            <input type="text" id="room-name-input" placeholder="Oda Adı (örn: Film Gecesi)" />
+            
+            <div class="info-box">
+                💡 <strong>Önerilen Video Servisleri:</strong><br>
+                🔹 <strong>Catbox.moe</strong> - Ücretsiz, 200 MB limit<br>
+                🔹 <strong>Bunny.net</strong> - Profesyonel, $1/ay<br>
+                🔹 <strong>Direkt .mp4 linki</strong> - Herhangi bir kaynak<br>
+                <br>
+                ⚠️ Google Drive, pCloud, Koofr çalışmayabilir
+            </div>
+            
+            <textarea id="video-url-input" placeholder="Video URL (Catbox, Bunny veya direkt .mp4 linki)
+
+Örnek:
+https://files.catbox.moe/abc123.mp4
+https://yourzone.b-cdn.net/video.mp4
+https://example.com/video.mp4"></textarea>
+            
+            <div class="checkbox-container">
+                <input type="checkbox" id="private-room-check" />
+                <label for="private-room-check">🔒 Özel Oda (Şifre Korumalı)</label>
+            </div>
+            
+            <input type="password" id="room-password-input" placeholder="Oda Şifresi (opsiyonel)" style="display: none;" />
+            
+            <label for="screen-size">Ekran Boyutu:</label>
+            <select id="screen-size">
+                <option value="normal">Normal (16m)</option>
+                <option value="large" selected>Büyük (24m)</option>
+                <option value="xlarge">Çok Büyük (32m)</option>
+                <option value="imax">IMAX (40m)</option>
+            </select>
+            
+            <div class="radio-container">
+                <strong>🎮 Video Kontrolü:</strong>
+                <label>
+                    <input type="radio" name="control-mode" value="owner" checked>
+                    Sadece oda sahibi kontrol edebilir
+                </label>
+                <label>
+                    <input type="radio" name="control-mode" value="everyone">
+                    Herkes kontrol edebilir
+                </label>
+            </div>
+            
+            <h2>🎭 Sinema Ortamı Seçin (13 Seçenek)</h2>
+            <div class="environment-grid" id="environment-selector">
+                <div class="environment-card selected" data-env="none" onclick="selectEnvironment('none', this)">
+                    <div class="environment-icon">⬛</div>
+                    <div class="environment-name">Ortamsız</div>
+                    <div class="environment-desc">Sade karanlık</div>
+                </div>
+                <div class="environment-card" data-env="theater" onclick="selectEnvironment('theater', this)">
+                    <div class="environment-icon">🎪</div>
+                    <div class="environment-name">Klasik Sinema</div>
+                    <div class="environment-desc">Geleneksel salon</div>
+                </div>
+                <div class="environment-card" data-env="space" onclick="selectEnvironment('space', this)">
+                    <div class="environment-icon">🌌</div>
+                    <div class="environment-name">Uzay İstasyonu</div>
+                    <div class="environment-desc">Yıldızlar arası</div>
+                </div>
+                <div class="environment-card" data-env="forest" onclick="selectEnvironment('forest', this)">
+                    <div class="environment-icon">🌲</div>
+                    <div class="environment-name">Orman</div>
+                    <div class="environment-desc">Doğanın içi</div>
+                </div>
+                <div class="environment-card" data-env="desert" onclick="selectEnvironment('desert', this)">
+                    <div class="environment-icon">🏜️</div>
+                    <div class="environment-name">Çöl Gece</div>
+                    <div class="environment-desc">Yıldızlı gökyüzü</div>
+                </div>
+                <div class="environment-card" data-env="moon" onclick="selectEnvironment('moon', this)">
+                    <div class="environment-icon">🌙</div>
+                    <div class="environment-name">Ay Yüzeyi</div>
+                    <div class="environment-desc">Dünya manzarası</div>
+                </div>
+                <div class="environment-card" data-env="cyberpunk" onclick="selectEnvironment('cyberpunk', this)">
+                    <div class="environment-icon">🌃</div>
+                    <div class="environment-name">Cyberpunk</div>
+                    <div class="environment-desc">Neon ışıklar</div>
+                </div>
+                <div class="environment-card" data-env="underwater" onclick="selectEnvironment('underwater', this)">
+                    <div class="environment-icon">🌊</div>
+                    <div class="environment-name">Su Altı</div>
+                    <div class="environment-desc">Okyanus derinliği</div>
+                </div>
+                <div class="environment-card" data-env="mountain" onclick="selectEnvironment('mountain', this)">
+                    <div class="environment-icon">⛰️</div>
+                    <div class="environment-name">Dağ Zirvesi</div>
+                    <div class="environment-desc">Bulutlar üstü</div>
+                </div>
+                <div class="environment-card" data-env="volcano" onclick="selectEnvironment('volcano', this)">
+                    <div class="environment-icon">🌋</div>
+                    <div class="environment-name">Volkan</div>
+                    <div class="environment-desc">Ateş ve lav</div>
+                </div>
+                <div class="environment-card" data-env="fantasy" onclick="selectEnvironment('fantasy', this)">
+                    <div class="environment-icon">✨</div>
+                    <div class="environment-name">Fantastik</div>
+                    <div class="environment-desc">Rüya gibi</div>
+                </div>
+                <div class="environment-card" data-env="city" onclick="selectEnvironment('city', this)">
+                    <div class="environment-icon">🏙️</div>
+                    <div class="environment-name">Şehir</div>
+                    <div class="environment-desc">Gökdelenler</div>
+                </div>
+                <div class="environment-card" data-env="beach" onclick="selectEnvironment('beach', this)">
+                    <div class="environment-icon">🏖️</div>
+                    <div class="environment-name">Sahil</div>
+                    <div class="environment-desc">Gün batımı</div>
+                </div>
+            </div>
+            
+            <br>
+            <button onclick="createRoom()">🎬 Oda Oluştur ve Başlat</button>
+            <button onclick="showMainMenu()" class="secondary">◀ Geri</button>
+        </div>
+        
+        <!-- Oda Listesi -->
+        <div id="room-list" style="display: none;">
+            <h2>Aktif Odalar</h2>
+            <div id="rooms-container">
+                <div class="loading">⏳ Odalar yükleniyor...</div>
+            </div>
+            <br>
+            <button onclick="refreshRooms()" class="secondary">🔄 Yenile</button>
+            <button onclick="showMainMenu()" class="secondary">◀ Geri</button>
+        </div>
+        
+        <!-- Şifre Girişi -->
+        <div id="password-prompt" style="display: none;">
+            <h2>🔒 Şifreli Oda</h2>
+            <p id="password-room-name"></p>
+            <input type="password" id="room-password-join" placeholder="Oda Şifresi" />
+            <br><br>
+            <button onclick="joinWithPassword()">Giriş Yap</button>
+            <button onclick="showRoomList()" class="secondary">◀ Geri</button>
+        </div>
+    </div>
+</div>
+
+<!-- Oda Silme Onay Modalı -->
+<div id="delete-modal" class="modal">
+    <div class="modal-content">
+        <h2>🚪 Odadan Çıkış</h2>
+        <p>Siz bu odanın sahibisiniz.</p>
+        <p><strong>Odayı silmek istiyor musunuz?</strong></p>
+        <div class="warning-box">
+            ⚠️ <strong>Odayı silerseniz:</strong> Diğer katılımcılar da otomatik olarak çıkarılır.<br><br>
+            ✅ <strong>Açık bırakırsanız:</strong> Oda sahipliği bir sonraki kişiye devredilir.<br>
+            • Odada başkaları varsa → Sahiplik devredilir<br>
+            • Odada kimse yoksa → Oda sahipsiz kalır, ilk giren sahip olur
+        </div>
+        <div class="modal-buttons">
+            <button onclick="confirmDeleteRoom(false)" class="secondary">Hayır, Açık Bırak</button>
+            <button onclick="confirmDeleteRoom(true)" class="danger">Evet, Sil</button>
+        </div>
+    </div>
+</div>
+
+<!-- VR Kontrolleri -->
+<div id="vr-controls">
+    <button onclick="togglePlayPause()">⏯ Play/Pause</button>
+    <button onclick="stopVideo()" class="stop">⏹ Durdur (Başa Sar)</button>
+    <button onclick="leaveRoom()">🚪 Odadan Çık</button>
+</div>
+
+<!-- Oda Bilgisi -->
+<div id="room-info-display">
+    <div><span id="status-indicator" class="status-indicator connected"></span> <span id="room-title">Oda</span></div>
+    <div style="font-size: 0.8em; margin-top: 5px;">👥 <span id="viewers-count">0</span> İzleyici</div>
+    <div id="video-service-badge" style="margin-top: 5px;"></div>
+    <div id="environment-badge" style="margin-top: 5px; font-size: 0.8em;"><span id="env-name">Ortam</span></div>
+    <div id="control-mode-badge" style="margin-top: 5px; font-size: 0.8em;">🎮 <span id="control-mode-text">Kontrol</span></div>
+    <div id="sync-status">⏱️ 3 saniye sonra başlıyor...</div>
+</div>
+
+<!-- Klavye Kısayolları Yardım (H tuşu ile aç/kapa) -->
+<div id="keyboard-help" class="keyboard-help">
+    <h3>⌨️ Klavye Kısayolları</h3>
+    <ul>
+        <li><kbd>Space</kbd> Play/Pause</li>
+        <li><kbd>←</kbd> <kbd>→</kbd> 10sn Geri/İleri</li>
+        <li><kbd>↑</kbd> <kbd>↓</kbd> Ekran Yukarı/Aşağı</li>
+        <li><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> Ekran Hareketi</li>
+        <li><kbd>Q</kbd> <kbd>E</kbd> Ekran İleri/Geri</li>
+        <li><kbd>R</kbd> Ekran Sıfırla</li>
+        <li><kbd>C</kbd> Altyazı Aç/Kapa</li>
+        <li><kbd>M</kbd> Sessiz</li>
+        <li><kbd>F</kbd> Tam Ekran</li>
+        <li><kbd>H</kbd> Bu Yardımı Aç/Kapa</li>
+    </ul>
+</div>
+
+<!-- VR Sahnesi -->
+<a-scene id="vr-scene" loading-screen="enabled: false">
+    <a-entity id="environment-container"></a-entity>
+    <a-video
+        id="cinema-screen"
+        src=""
+        width="24"
+        height="13.5"
+        position="0 2 -15"
+        visible="false"
+    ></a-video>
+    <a-plane 
+        id="default-floor"
+        position="0 0 0" 
+        rotation="-90 0 0" 
+        width="100" 
+        height="100" 
+        color="#1a1a1a"
+        visible="true"
+    ></a-plane>
+    <a-light type="ambient" color="#444"></a-light>
+    <a-light type="point" position="0 5 0" intensity="0.5"></a-light>
+    <a-entity id="camera-rig" position="0 1.6 0">
+        <a-camera></a-camera>
+    </a-entity>
+</a-scene>
+
+<script src="js.js"></script>
+
+</body>
+</html>

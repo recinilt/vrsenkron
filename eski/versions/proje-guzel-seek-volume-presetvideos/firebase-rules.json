@@ -1,0 +1,270 @@
+{
+  "rules": {
+    "_clockSync": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    
+    "videoLibrary": {
+      ".read": true,
+      ".write": "auth != null",
+      ".indexOn": ["addedAt", "url"],
+      
+      "$videoId": {
+        ".read": true,
+        ".write": "auth != null",
+        
+        "url": {
+          ".validate": "newData.isString() && newData.val().length >= 10 && newData.val().length <= 2000"
+        },
+        
+        "title": {
+          ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 200"
+        },
+        
+        "addedAt": {
+          ".validate": "newData.isNumber() && newData.val() <= now + 1000"
+        }
+      }
+    },
+    
+    "rooms": {
+      ".read": true,
+      ".indexOn": ["createdAt", "viewers", "isPrivate"],
+      
+      "$roomId": {
+        ".read": true,
+        ".write": "auth != null",
+        
+        "owner": {
+          ".write": "auth != null && (!data.exists() || data.val() === null || data.val() === auth.uid)"
+        },
+        
+        "name": {
+          ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 100"
+        },
+        
+        "videoUrl": {
+          ".validate": "newData.isString() && newData.val().length <= 2000"
+        },
+        
+        "subtitleUrl": {
+          ".validate": "(newData.isString() && newData.val().length <= 2000) || newData.val() === null || !newData.exists()"
+        },
+        
+        "environment": {
+          ".validate": "newData.isString() && (newData.val() === 'none' || newData.val() === 'default' || newData.val() === 'forest' || newData.val() === 'starry' || newData.val() === 'goaland')"
+        },
+        
+        "screenSize": {
+          ".validate": "newData.isString() && (newData.val() === 'flat' || newData.val() === '360' || newData.val() === '180' || newData.val() === 'small' || newData.val() === 'medium' || newData.val() === 'large' || newData.val() === 'huge')"
+        },
+        
+        "controlMode": {
+          ".validate": "newData.isString() && (newData.val() === 'owner' || newData.val() === 'everyone')"
+        },
+        
+        "isPrivate": {
+          ".validate": "newData.isBoolean()"
+        },
+        
+        "viewers": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
+        },
+        
+        "createdAt": {
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
+        
+        "ownerName": {
+          ".validate": "(newData.isString() && newData.val().length <= 50) || !newData.exists()"
+        },
+        
+        "videoState": {
+          ".read": true,
+          ".write": "auth != null && (root.child('rooms/' + $roomId + '/controlMode').val() === 'everyone' || root.child('rooms/' + $roomId + '/owner').val() === auth.uid)",
+          
+          "isPlaying": {
+            ".validate": "newData.isBoolean()"
+          },
+          
+          "currentTime": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 86400"
+          },
+          
+          "startTimestamp": {
+            ".validate": "(newData.isNumber() && newData.val() >= now - 10000 && newData.val() <= now + 10000) || newData.val() === null"
+          },
+          
+          "lastUpdate": {
+            ".validate": "newData.isNumber() && newData.val() <= now + 1000"
+          }
+        },
+        
+        "activeViewers": {
+          ".read": true,
+          ".indexOn": ["timestamp"],
+          
+          "$viewerId": {
+            ".write": "auth != null && (auth.uid === $viewerId || !newData.exists())",
+            
+            "timestamp": {
+              ".validate": "newData.isNumber() && newData.val() <= now + 1000"
+            },
+            
+            "isOwner": {
+              ".validate": "newData.isBoolean()"
+            },
+            
+            "currentDrift": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 30000"
+            },
+            
+            "playbackRate": {
+              ".validate": "newData.isNumber() && newData.val() >= 0.5 && newData.val() <= 2"
+            }
+          }
+        },
+        
+        "keyframes": {
+          ".read": true,
+          ".write": "auth != null && root.child('rooms/' + $roomId + '/owner').val() === auth.uid",
+          ".indexOn": ["timestamp"],
+          
+          "$keyframeId": {
+            ".validate": "newData.hasChildren(['timestamp', 'currentTime', 'isPlaying'])",
+            
+            "timestamp": {
+              ".validate": "newData.isNumber() && newData.val() >= now - 10000 && newData.val() <= now + 10000"
+            },
+            
+            "currentTime": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 86400"
+            },
+            
+            "isPlaying": {
+              ".validate": "newData.isBoolean()"
+            },
+            
+            "playbackRate": {
+              ".validate": "(newData.isNumber() && newData.val() >= 0.25 && newData.val() <= 4) || !newData.exists()"
+            },
+            
+            "startTimestamp": {
+              ".validate": "(newData.isNumber() && newData.val() >= now - 10000 && newData.val() <= now + 10000) || newData.val() === null || !newData.exists()"
+            }
+          }
+        },
+        
+        "urgentUpdates": {
+          ".read": true,
+          ".write": "auth != null && (root.child('rooms/' + $roomId + '/controlMode').val() === 'everyone' || root.child('rooms/' + $roomId + '/owner').val() === auth.uid)",
+          ".indexOn": ["timestamp", "processed"],
+          
+          "$updateId": {
+            ".validate": "newData.hasChildren(['action', 'timestamp', 'processed'])",
+            
+            "action": {
+              ".validate": "newData.isString() && (newData.val() === 'play' || newData.val() === 'pause' || newData.val() === 'seek')"
+            },
+            
+            "timestamp": {
+              ".validate": "newData.isNumber() && newData.val() >= now - 10000 && newData.val() <= now + 10000"
+            },
+            
+            "processed": {
+              ".validate": "newData.isBoolean()"
+            },
+            
+            "currentTime": {
+              ".validate": "(newData.isNumber() && newData.val() >= 0 && newData.val() <= 86400) || !newData.exists()"
+            },
+            
+            "startTimestamp": {
+              ".validate": "(newData.isNumber() && newData.val() >= now - 10000 && newData.val() <= now + 10000) || newData.val() === null || !newData.exists()"
+            },
+            
+            "shouldPlay": {
+              ".validate": "newData.isBoolean() || !newData.exists()"
+            }
+          }
+        },
+        
+        "requests": {
+          ".read": true,
+          ".write": "auth != null",
+          ".indexOn": ["timestamp", "processed"],
+          
+          "$requestId": {
+            ".validate": "newData.hasChildren(['userId', 'action', 'timestamp', 'processed'])",
+            
+            "userId": {
+              ".validate": "newData.isString() && newData.val() === auth.uid"
+            },
+            
+            "action": {
+              ".validate": "newData.isString() && (newData.val() === 'play' || newData.val() === 'pause' || newData.val() === 'seek' || newData.val() === 'stop')"
+            },
+            
+            "timestamp": {
+              ".validate": "newData.isNumber() && newData.val() >= now - 10000 && newData.val() <= now + 10000"
+            },
+            
+            "processed": {
+              ".validate": "newData.isBoolean()"
+            },
+            
+            "params": {
+              ".validate": "newData.hasChildren() || !newData.exists()",
+              
+              "currentTime": {
+                ".validate": "(newData.isNumber() && newData.val() >= 0 && newData.val() <= 86400) || !newData.exists()"
+              },
+              
+              "shouldPlay": {
+                ".validate": "newData.isBoolean() || !newData.exists()"
+              },
+              
+              "seconds": {
+                ".validate": "(newData.isNumber() && newData.val() >= -600 && newData.val() <= 600) || !newData.exists()"
+              },
+              
+              "percentage": {
+                ".validate": "(newData.isNumber() && newData.val() >= 0 && newData.val() <= 1) || !newData.exists()"
+              }
+            }
+          }
+        },
+        
+        "serverTimestamp": {
+          ".read": true,
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= now - 1000 && newData.val() <= now + 1000"
+        },
+        
+        "originalUrl": {
+          ".validate": "(newData.isString() && newData.val().length <= 2000) || !newData.exists()"
+        },
+        
+        "videoService": {
+          ".validate": "newData.isString() || !newData.exists()"
+        },
+        
+        "videoType": {
+          ".validate": "newData.isString() || !newData.exists()"
+        },
+        
+        "members": {
+          ".validate": "newData.hasChildren() || !newData.exists()"
+        },
+        
+        "currentKeyframe": {
+          ".validate": "newData.hasChildren() || !newData.exists()"
+        }
+      }
+    },
+    
+    ".read": false,
+    ".write": false
+  }
+}

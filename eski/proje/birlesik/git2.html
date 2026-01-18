@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tek Sayfa — Firebase ile Senkron VR İzleme</title>
+
+  <!-- A-Frame (VR/360) -->
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+
+  <style>
+    body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; height:100vh; overflow:hidden; }
+    #ui {
+      position: absolute; z-index: 20; left:12px; top:12px; background: rgba(0,0,0,0.55);
+      color:#fff; padding:12px; border-radius:8px; max-width:380px;
+    }
+    #ui input, #ui button, #ui label { margin:6px 0; display:block; width:100%; }
+    #controls { margin-top:8px; }
+    .hidden { display:none; }
+    a-scene, canvas { width:100vw !important; height:100vh !important; position:absolute; top:0; left:0; }
+    #status { font-size:13px; color:#ddd; margin-top:6px; word-break:break-word; }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <h2 style="margin:0 0 8px 0">VR Senkron İzleyici (Firebase)</h2>
+
+    <div id="login-section">
+      <div style="font-size:13px; color:#ddd">Firebase ile anonim giriş yapılıyor...</div>
+    </div>
+
+    <div id="room-section" class="hidden">
+      <input id="room-id" placeholder="Oda ID (ör: myroom)" />
+      <button id="join-btn">Odaya Katıl / Oluştur</button>
+      <div id="room-meta" style="font-size:13px; color:#ddd; margin-top:6px"></div>
+
+      <div id="controls" class="hidden">
+        <button id="become-host">Kontrolü Al (Become Host)</button>
+        <div style="display:flex; gap:6px; margin-top:6px">
+          <button id="play-btn">Play</button>
+          <button id="pause-btn">Pause</button>
+          <button id="mute-btn">Mute</button>
+        </div>
+        <label style="margin-top:6px">Seek:
+          <input id="seek" type="range" min="0" max="1000" value="0" step="1" />
+        </label>
+        <button id="enter-vr" style="margin-top:6px">Enter VR</button>
+
+        <div id="status"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:8px; font-size:12px; color:#aaa">
+      Not: Video dosyasını aynı dizine koyun: <code>360video.mp4</code> veya <code>index.html</code>'de src'yi değiştirin.
+    </div>
+  </div>
+
+  <!-- A-Frame scene + video asset -->
+  <a-scene>
+    <a-assets>
+      <!-- Yerel 360 video: public/360video.mp4 gibi aynı klasöre koyun -->
+      <video id="video" src="https://vr-sinema.online/videos/chocolat-cikolata-2000-turkce-dublaj.mp4" crossorigin="anonymous" loop playsinline webkit-playsinline muted></video>
+    </a-assets>
+    <a-videosphere id="sphere" src="#video" rotation="0 -90 0"></a-videosphere>
+    <a-camera wasd-controls-enabled="false"></a-camera>
+  </a-scene>
+
+  <!-- Firebase (modular) -->
+  <script type="module">
+    // -----------------------------
+    // Firebase yapılandırması (kullanıcının verdiği)
+    // -----------------------------
+    const firebaseConfig = {
+      apiKey: "AIzaSyC60idSLdAiqAjPWAOMaM3g8LAKPGEUwH8",
+      authDomain: "vr-sinema.firebaseapp.com",
+      databaseURL: "https://vr-sinema-default-rtdb.firebaseio.com",
+      projectId: "vr-sinema",
+      storageBucket: "vr-sinema.firebasestorage.app",
+      messagingSenderId: "724648238300",
+      appId: "1:724648238300:web:dceba8c536e8a5ffd96819"
+    };
+
+    // Modüler SDK importları (CDN)
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
+    import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
+    import {
+      getDatabase, ref, set, onValue, onDisconnect, serverTimestamp,
+      runTransaction, remove, get, child, update
+    } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js';
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    // UI elemanları
+    const loginSection = document.getElementById('login-section');
+    const roomSection = document.getElementById('room-section');
+    const joinBtn = document.getElementById('join-btn');
+    const roomIdInput = document.getElementById('room-id');
+    const roomMeta = document.getElementById('room-meta');
+    const controls = document.getElementById('controls');
+    const becomeHostBtn = document.getElementById('become-host');
+    const playBtn = document.getElementById('play-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const seekInput = document.getElementById('seek');
+    const statusEl = document.getElementById('status');
+    const muteBtn = document.getElementById('mute-btn');
+    const enterVrBtn = document.getElementById('enter-vr');
+
+    const video = document.getElementById('video');
+
+    // Client state
+    let uid = null;
+    let currentRoom = null;
+    let amHost = false;
+    let hostId = null;
+    let stateRef = null;
+    let hostRef = null;
+    let clientsRef = null;
+    let clientsUnsub = null;
+    let stateUnsub = null;
+    let hostUnsub = null;
+    let periodicUpdateTimer = null;
+
+    // Utility log
+    function log(s) {
+      statusEl.textContent = s;
+      console.log('[app]', s);
+    }
+
+    // Anonymous sign-in
+    signInAnonymously(auth)
+      .then(() => {
+        log('Anonim olarak giriş yapıldı. UID alınıyor...');
+      })
+      .catch((err) => {
+        log('Auth hatası: ' + err.message);
+        // Hata olsa bile onAuthStateChanged çalışabilir
+      });
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        uid = user.uid;
+        loginSection.classList.add('hidden');
+        roomSection.classList.remove('hidden');
+        log('Giriş başarılı. UID: ' + uid);
+        // Eğer URL path: /room/<id> ise otomatik doldur
+        const m = location.pathname.match(/^\/room\/(.+)/);
+        if (m) roomIdInput.value = decodeURIComponent(m[1]);
+      } else {
+        uid = null;
+        log('Henüz oturum yok.');
+      }
+    });
+
+    // Join room
+    joinBtn.addEventListener('click', async () => {
+      const roomId = (roomIdInput.value || '').trim();
+      if (!roomId) return alert('Lütfen bir oda ID girin.');
+      if (!uid) return alert('Henüz giriş yapılmadı.');
+
+      await joinRoom(roomId);
+    });
+
+    async function joinRoom(roomId) {
+      cleanupRoom(); // Previous listeners
+      currentRoom = roomId;
+      roomMeta.textContent = `Odaya bağlanılıyor: ${roomId} ...`;
+      stateRef = ref(db, `rooms/${roomId}/state`);
+      hostRef = ref(db, `rooms/${roomId}/host`);
+      clientsRef = ref(db, `rooms/${roomId}/clients/${uid}`);
+
+      // presence: kendimizi clients/{roomId}/clients/{uid} olarak ekle ve onDisconnect ile temizle
+      try {
+        await set(clientsRef, { joinedAt: serverTimestamp() });
+        onDisconnect(clientsRef).remove();
+      } catch (e) {
+        console.error('presence set hatası', e);
+      }
+
+      // host claim: transaction ile eğer host yoksa biz olalım
+      try {
+        const txnResult = await runTransaction(ref(db, `rooms/${roomId}/host`), (current) => {
+          if (current === null || current === undefined) {
+            return uid; // claim host
+          }
+          return current; // keep existing host
+        });
+        hostId = txnResult.snapshot.val();
+        amHost = (hostId === uid);
+        if (amHost) {
+          // ensure host field removed on disconnect (so others can claim)
+          try {
+            onDisconnect(hostRef).set(null);
+          } catch (e) { /* ignore */ }
+        }
+        log(amHost ? 'Bu oda için host atandınız.' : `Host: ${hostId}`);
+      } catch (e) {
+        console.error('host claim hatası', e);
+      }
+
+      // listen host changes
+      hostUnsub = onValue(hostRef, (snap) => {
+        hostId = snap.val();
+        const imHost = (hostId === uid);
+        // If host changed to me, set onDisconnect; if host changed away and I was host, clear my onDisconnect for host
+        if (imHost && !amHost) {
+          try { onDisconnect(hostRef).set(null); } catch (e) {}
+        }
+        amHost = imHost;
+        updateUIForRole();
+      });
+
+      // listen clients count
+      const roomClientsRef = ref(db, `rooms/${roomId}/clients`);
+      onValue(roomClientsRef, (snap) => {
+        const clients = snap.val() || {};
+        const count = Object.keys(clients).length;
+        roomMeta.textContent = `Oda: ${roomId} — Kişi: ${count} — Host: ${hostId || '(yok)'}`;
+      });
+
+      // listen state changes for sync
+      stateUnsub = onValue(stateRef, (snap) => {
+        const data = snap.val();
+        if (!data) return;
+        // If I am host, ignore incoming authoritative updates
+        if (amHost) return;
+        applyRemoteState(data);
+      });
+
+      // get initial state once (in case there is existing state)
+      try {
+        const s = await get(stateRef);
+        if (s.exists() && !amHost) {
+          applyRemoteState(s.val());
+        }
+      } catch (e) {
+        console.warn('initial state read failed', e);
+      }
+
+      // show controls
+      controls.classList.remove('hidden');
+      updateUIForRole();
+
+      // start periodic host updates if we are host
+      startPeriodicUpdateIfHost();
+      log('Odaya katıldınız.');
+    }
+
+    function cleanupRoom() {
+      // cancel timers & listeners - in RTDB modular the onValue returns unsubscribe function, but we used onValue without saving, so we rely on refs being overwritten.
+      // A safe approach: remove local timers, reset vars. DB listeners created above persist; in this simple single-page app re-joining same session won't create duplicates typicaly.
+      stopPeriodicUpdate();
+      amHost = false;
+      currentRoom = null;
+      stateRef = null;
+      hostRef = null;
+      // Note: for a stricter cleanup we'd store unsubscribers and call them. For brevity we depend on single usage per page.
+    }
+
+    // Become host button
+    becomeHostBtn.addEventListener('click', async () => {
+      if (!currentRoom) return;
+      try {
+        const txnResult = await runTransaction(ref(db, `rooms/${currentRoom}/host`), (current) => {
+          // set to me regardless (steal host)
+          return uid;
+        });
+        hostId = txnResult.snapshot.val();
+        amHost = (hostId === uid);
+        if (amHost) {
+          onDisconnect(ref(db, `rooms/${currentRoom}/host`)).set(null);
+          startPeriodicUpdateIfHost();
+          log('Kontrolü aldınız (host).');
+        }
+      } catch (e) {
+        console.error('become-host hata', e);
+      }
+    });
+
+    // Play / Pause / Seek handlers
+    playBtn.addEventListener('click', async () => {
+      try { await video.play(); } catch (e) {}
+      if (amHost && stateRef) {
+        await set(stateRef, { time: video.currentTime, playing: true, updatedAt: serverTimestamp() });
+      }
+      log('Play tetiklendi.');
+    });
+
+    pauseBtn.addEventListener('click', async () => {
+      video.pause();
+      if (amHost && stateRef) {
+        await set(stateRef, { time: video.currentTime, playing: false, updatedAt: serverTimestamp() });
+      }
+      log('Pause tetiklendi.');
+    });
+
+    seekInput.addEventListener('input', async () => {
+      const perc = seekInput.value / 1000;
+      const dur = video.duration || 0;
+      if (dur > 0) {
+        const t = perc * dur;
+        video.currentTime = t;
+        if (amHost && stateRef) {
+          await set(stateRef, { time: t, playing: !video.paused, updatedAt: serverTimestamp() });
+        }
+        log(`Seek: ${t.toFixed(2)}s`);
+      }
+    });
+
+    muteBtn.addEventListener('click', () => {
+      video.muted = !video.muted;
+      muteBtn.textContent = video.muted ? 'Unmute' : 'Mute';
+    });
+
+    enterVrBtn.addEventListener('click', () => {
+      const scene = document.querySelector('a-scene');
+      if (scene && scene.enterVR) scene.enterVR();
+    });
+
+    // Update seek slider from local video time
+    setInterval(() => {
+      const dur = video.duration || 0;
+      if (dur > 0) {
+        seekInput.max = 1000;
+        seekInput.value = Math.floor((video.currentTime / dur) * 1000);
+      }
+    }, 300);
+
+    // Periodic host update (send authoritative time)
+    function startPeriodicUpdateIfHost() {
+      stopPeriodicUpdate();
+      if (!amHost || !currentRoom) return;
+      periodicUpdateTimer = setInterval(async () => {
+        if (!amHost || !stateRef) return;
+        try {
+          await set(stateRef, { time: video.currentTime, playing: !video.paused, updatedAt: serverTimestamp() });
+        } catch (e) {
+          console.warn('host update failed', e);
+        }
+      }, 700); // ~700ms
+    }
+    function stopPeriodicUpdate() {
+      if (periodicUpdateTimer) {
+        clearInterval(periodicUpdateTimer);
+        periodicUpdateTimer = null;
+      }
+    }
+
+    // Apply remote state (for non-hosts)
+    let lastAppliedUpdateAt = 0;
+    async function applyRemoteState(data) {
+      if (!data) return;
+      try {
+        // prevent re-applying same update (use updatedAt if present)
+        const updatedAt = data.updatedAt || 0;
+        // updatedAt from serverTimestamp is a number inside {'.sv':...} until resolved; onValue usually gives resolved timestamp numeric
+        if (updatedAt && updatedAt <= lastAppliedUpdateAt) {
+          // older or same update, ignore
+        }
+        lastAppliedUpdateAt = updatedAt || Date.now();
+
+        const remoteTime = typeof data.time === 'number' ? data.time : null;
+        const remotePlaying = typeof data.playing === 'boolean' ? data.playing : null;
+
+        if (remoteTime !== null) {
+          const local = video.currentTime || 0;
+          const diff = Math.abs(local - remoteTime);
+          // if very different, jump
+          if (diff > 0.7) {
+            video.currentTime = remoteTime;
+            log(`Zaman senkronize edildi: ${remoteTime.toFixed(2)}s (fark ${diff.toFixed(2)}s)`);
+          } else {
+            // small diffs: do not continuously seek to avoid jitter
+          }
+        }
+
+        if (remotePlaying !== null) {
+          if (remotePlaying && video.paused) {
+            try { await video.play(); } catch (e) {}
+            log('Remote: Play');
+          } else if (!remotePlaying && !video.paused) {
+            video.pause();
+            log('Remote: Pause');
+          }
+        }
+      } catch (e) {
+        console.error('applyRemoteState hatası', e);
+      }
+    }
+
+    function updateUIForRole() {
+      if (!currentRoom) return;
+      becomeHostBtn.textContent = amHost ? 'Siz Host\'siniz' : 'Kontrolü Al';
+      if (amHost) {
+        becomeHostBtn.disabled = true;
+      } else {
+        becomeHostBtn.disabled = false;
+      }
+      // show/hide controls
+      controls.classList.remove('hidden');
+    }
+
+    // When page unloads, if we are host remove host entry (onDisconnect already set)
+    window.addEventListener('beforeunload', () => {
+      // nothing needed: onDisconnect handlers will fire
+    });
+
+    // Helpful tries to autoplay muted on first user gesture
+    document.addEventListener('click', async () => {
+      if (video.paused && video.muted) {
+        try { await video.play(); } catch (e) {}
+      }
+    }, { once: true });
+
+    // Try to load metadata and set seek control
+    video.addEventListener('loadedmetadata', () => {
+      const dur = video.duration || 0;
+      if (dur > 0) seekInput.max = 1000;
+    });
+
+    // Simple helper to read once (promise)
+    async function get(refObj) {
+      try {
+        const snapshot = await import('https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js')
+          .then(mod => mod.get(refObj));
+        return snapshot;
+      } catch (e) {
+        console.error('get() helper failed', e);
+        return { exists: () => false };
+      }
+    }
+
+    // End of module
+  </script>
+</body>
+</html>

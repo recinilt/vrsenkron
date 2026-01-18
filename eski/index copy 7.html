@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR Sinema ULTRA</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    
+    <!-- A-Frame VR -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-environment-component@1.3.7/dist/aframe-environment-component.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        #ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.95);
+            transition: opacity 0.3s;
+        }
+        
+        #ui-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .container {
+            max-width: 600px;
+            width: 90%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 16px;
+        }
+        
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        #room-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .room-item {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .room-item:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        
+        .room-name {
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .room-details {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        #vr-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 500;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            display: none;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        #vr-controls button {
+            width: auto;
+            padding: 10px 20px;
+            margin: 0 5px;
+            font-size: 14px;
+        }
+        
+        #room-info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 500;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+            max-width: 300px;
+        }
+        
+        #sync-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 500;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 10px 15px;
+            border-radius: 10px;
+            display: none;
+            font-size: 14px;
+        }
+        
+        .status-good { color: #4ade80; }
+        .status-warning { color: #fbbf24; }
+        .status-error { color: #f87171; }
+        
+        #viewer-count {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        a-scene {
+            width: 100%;
+            height: 100vh;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 2em;
+            }
+            #vr-controls {
+                bottom: 10px;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- UI Overlay -->
+    <div id="ui-overlay">
+        <div class="container">
+            <h1>🎬 VR Sinema</h1>
+            
+            <div id="create-room-section">
+                <div class="input-group">
+                    <label>Oda Adı</label>
+                    <input type="text" id="room-name" placeholder="Özel film gecesi">
+                </div>
+                
+                <div class="input-group">
+                    <label>Video URL</label>
+                    <input type="text" id="video-url" placeholder="YouTube, Google Drive veya direkt video linki">
+                </div>
+                
+                <div class="input-group">
+                    <label>Ekran Boyutu</label>
+                    <select id="screen-size">
+                        <option value="small">Küçük (8x4.5)</option>
+                        <option value="medium" selected>Orta (12x6.75)</option>
+                        <option value="large">Büyük (16x9)</option>
+                        <option value="huge">Çok Büyük (20x11.25)</option>
+                    </select>
+                </div>
+                
+                <div class="input-group">
+                    <label>Ortam</label>
+                    <select id="environment">
+                        <option value="none">Siyah Arka Plan</option>
+                        <option value="default" selected>Klasik</option>
+                        <option value="forest">Orman</option>
+                        <option value="starry">Yıldızlı Gece</option>
+                    </select>
+                </div>
+                
+                <button onclick="createRoom()">🚀 Oda Oluştur ve Katıl</button>
+                <button onclick="showRoomList()">📋 Mevcut Odalar</button>
+            </div>
+            
+            <div id="room-list-section" class="hidden">
+                <button onclick="showCreateRoom()">← Geri</button>
+                <div id="room-list"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- VR Controls (2D overlay) -->
+    <div id="vr-controls">
+        <button id="btn-play" onclick="playVideo()">▶️ Oynat</button>
+        <button id="btn-pause" onclick="pauseVideo()">⏸️ Duraklat</button>
+        <button id="btn-rewind" onclick="seekBackward()">⏪ -10s</button>
+        <button id="btn-forward" onclick="seekForward()">⏩ +10s</button>
+        <button onclick="leaveRoom()">🚪 Çık</button>
+    </div>
+    
+    <!-- Room Info -->
+    <div id="room-info">
+        <div id="room-name-display"></div>
+        <div id="viewer-count"></div>
+    </div>
+    
+    <!-- Sync Status -->
+    <div id="sync-status">
+        <span id="sync-text">Senkronize</span>
+    </div>
+    
+    <!-- A-Frame Scene -->
+    <a-scene vr-mode-ui="enabled: true" loading-screen="enabled: false">
+        <a-assets></a-assets>
+        
+        <!-- Camera with cursor for VR interaction -->
+        <a-camera position="0 1.6 0">
+            <a-cursor
+                id="vr-cursor"
+                color="#4ade80"
+                raycaster="objects: .clickable; interval: 500"
+                fuse="false"
+                visible="false">
+            </a-cursor>
+        </a-camera>
+        
+        <!-- Lighting -->
+        <a-light type="ambient" color="#BBB" intensity="0.5"></a-light>
+        <a-light type="directional" color="#FFF" intensity="0.6" position="-1 1 1"></a-light>
+    </a-scene>
+    
+    <script>
+        // ==================== CONFIG ====================
+        const firebaseConfig = {
+            apiKey: "AIzaSyC60idSLdAiqAjPWAOMaM3g8LAKPGEUwH8",
+            authDomain: "vr-sinema.firebaseapp.com",
+            databaseURL: "https://vr-sinema-default-rtdb.firebaseio.com",
+            projectId: "vr-sinema",
+            storageBucket: "vr-sinema.firebasestorage.app",
+            messagingSenderId: "724648238300",
+            appId: "1:724648238300:web:dceba8c536e8a5ffd96819"
+        };
+        
+        // Constants
+        const SYNCDELAY = 5000;
+        const KEYFRAMEINTERVAL = 7000;
+        const CLOCKSYNCINTERVAL = 60000;
+        const DRIFTUPDATEINTERVAL = 5000;
+        const PLAY_BUFFER_TIME = 5000;
+        const PRELOADBUFFERSECONDS = 7;
+        const TIER1THRESHOLD = 3000;
+        const TIER2THRESHOLD = 7000;
+        const TIER3THRESHOLD = 15000;
+        const TIER2LAGGINGSPEED = 1.1;
+        const TIER3LAGGINGSPEED = 1.25;
+        const OWNERPRESENCEUPDATEINTERVAL = 5000;
+        const OWNERPRESENCETIMEOUT = 15000;
+        const DEBUGMODE = false;
+        
+        // Global variables
+        let db, auth, currentUser, currentRoomId, currentRoomData;
+        let videoElement, isRoomOwner = false;
+        let clockOffset = 0;
+        let trackedIntervals = new Set();
+        let lastDriftValue = null;
+        let videoStateListener, keyframeListener;
+        
+        // Performance optimization variables
+        let lastFirebaseUpdate = 0;
+        let updateDebounceTimer = null;
+        let masterIntervalId = null;
+        let lastUIUpdate = 0;
+        const FIREBASE_DEBOUNCE_MS = 500;
+        const MASTER_INTERVAL_MS = 2000;
+        const UI_UPDATE_THROTTLE_MS = 1000;
+        
+        // ==================== FIREBASE INIT ====================
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.database();
+        auth = firebase.auth();
+        
+        // ==================== HELPER FUNCTIONS ====================
+        function debugLog(...args) {
+            if (DEBUGMODE) console.log(...args);
+        }
+        
+        function getServerTime() {
+            return Date.now() + clockOffset;
+        }
+        
+        function trackInterval(id) {
+            trackedIntervals.add(id);
+        }
+        
+        function clearTrackedInterval(id) {
+            clearInterval(id);
+            trackedIntervals.delete(id);
+        }
+        
+        function clearAllIntervals() {
+            trackedIntervals.forEach(id => clearInterval(id));
+            trackedIntervals.clear();
+        }
+        
+        function shouldUpdateFirebase() {
+            const now = Date.now();
+            if (now - lastFirebaseUpdate < FIREBASE_DEBOUNCE_MS) {
+                return false;
+            }
+            lastFirebaseUpdate = now;
+            return true;
+        }
+        
+        function shouldUpdateUI() {
+            const now = Date.now();
+            if (now - lastUIUpdate < UI_UPDATE_THROTTLE_MS) {
+                return false;
+            }
+            lastUIUpdate = now;
+            return true;
+        }
+        
+        // Master interval system - runs all periodic tasks
+        let taskCounters = {
+            clockSync: 0,
+            drift: 0,
+            keyframe: 0,
+            presence: 0,
+            viewer: 0,
+            cleanup: 0
+        };
+        
+        function startMasterInterval() {
+            if (masterIntervalId) return; // Already running
+            
+            masterIntervalId = setInterval(() => {
+                if (!currentRoomId) {
+                    stopMasterInterval();
+                    return;
+                }
+                
+                try {
+                    // Clock sync every 60 seconds (30 cycles)
+                    if (taskCounters.clockSync >= 30) {
+                        initClockSync();
+                        taskCounters.clockSync = 0;
+                    } else {
+                        taskCounters.clockSync++;
+                    }
+                    
+                    // Drift tracking every 4 seconds (2 cycles)
+                    if (taskCounters.drift >= 2) {
+                        trackDrift();
+                        taskCounters.drift = 0;
+                    } else {
+                        taskCounters.drift++;
+                    }
+                    
+                    // Keyframe sending every 6 seconds (3 cycles) - owner only
+                    if (isRoomOwner && taskCounters.keyframe >= 3) {
+                        sendKeyframe();
+                        taskCounters.keyframe = 0;
+                    } else {
+                        taskCounters.keyframe++;
+                    }
+                    
+                    // Owner presence every 4 seconds (2 cycles)
+                    if (taskCounters.presence >= 2) {
+                        updatePresence();
+                        taskCounters.presence = 0;
+                    } else {
+                        taskCounters.presence++;
+                    }
+                    
+                    // Viewer count UI update every 2 seconds (1 cycle)
+                    if (taskCounters.viewer >= 1) {
+                        if (shouldUpdateUI()) {
+                            updateViewerCount();
+                        }
+                        taskCounters.viewer = 0;
+                    } else {
+                        taskCounters.viewer++;
+                    }
+                    
+                    // Owner presence check every 10 seconds (5 cycles) - non-owners only
+                    if (!isRoomOwner && taskCounters.presence >= 5) {
+                        checkOwnerPresence();
+                    }
+                    
+                    // Cleanup old data every 60 seconds (30 cycles)
+                    if (isRoomOwner && taskCounters.cleanup >= 30) {
+                        cleanupOldData();
+                        taskCounters.cleanup = 0;
+                    } else {
+                        taskCounters.cleanup++;
+                    }
+                    
+                } catch (error) {
+                    console.error('Master interval error:', error);
+                }
+            }, MASTER_INTERVAL_MS);
+            
+            trackInterval(masterIntervalId);
+            debugLog('✅ Master interval started');
+        }
+        
+        function stopMasterInterval() {
+            if (masterIntervalId) {
+                clearTrackedInterval(masterIntervalId);
+                masterIntervalId = null;
+                taskCounters = { clockSync: 0, drift: 0, keyframe: 0, presence: 0, viewer: 0, cleanup: 0 };
+                debugLog('⏹️ Master interval stopped');
+            }
+        }
+        
+        // ==================== CLOCK SYNC ====================
+        async function initClockSync() {
+            try {
+                const samples = [];
+                for (let i = 0; i < 3; i++) {
+                    const t0 = Date.now();
+                    const ref = db.ref('.info/serverTimeOffset');
+                    const snapshot = await ref.once('value');
+                    const offset = snapshot.val();
+                    const t1 = Date.now();
+                    const rtt = t1 - t0;
+                    const serverTime = Date.now() + offset;
+                    const calculatedOffset = serverTime - (t0 + rtt / 2);
+                    samples.push(calculatedOffset);
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                clockOffset = samples.reduce((a, b) => a + b, 0) / samples.length;
+                debugLog('🕐 Clock offset:', clockOffset, 'ms');
+            } catch (error) {
+                console.warn('Clock sync error:', error);
+            }
+        }
+        
+        // ==================== ROOM MANAGEMENT ====================
+        async function createRoom() {
+            const roomName = document.getElementById('room-name').value.trim();
+            const videoUrl = document.getElementById('video-url').value.trim();
+            const screenSize = document.getElementById('screen-size').value;
+            const environment = document.getElementById('environment').value;
+            
+            if (!roomName || !videoUrl) {
+                alert('Lütfen oda adı ve video URL giriniz!');
+                return;
+            }
+            
+            try {
+                const userCredential = await auth.signInAnonymously();
+                currentUser = userCredential.user;
+                
+                const roomRef = db.ref('rooms').push();
+                currentRoomId = roomRef.key;
+                
+                await roomRef.set({
+                    name: roomName,
+                    owner: currentUser.uid,
+                    videoUrl: videoUrl,
+                    screenSize: screenSize,
+                    environment: environment,
+                    createdAt: firebase.database.ServerValue.TIMESTAMP,
+                    videoState: {
+                        isPlaying: false,
+                        currentTime: 0,
+                        startTimestamp: 0,
+                        lastUpdate: firebase.database.ServerValue.TIMESTAMP
+                    }
+                });
+                
+                await joinRoom(currentRoomId);
+            } catch (error) {
+                console.error('❌ Oda oluşturma hatası:', error);
+                alert('Oda oluşturulamadı: ' + error.message);
+            }
+        }
+        
+        async function joinRoom(roomId) {
+            try {
+                if (!auth.currentUser) {
+                    const userCredential = await auth.signInAnonymously();
+                    currentUser = userCredential.user;
+                } else {
+                    currentUser = auth.currentUser;
+                }
+                
+                currentRoomId = roomId;
+                const roomSnapshot = await db.ref('rooms/' + roomId).once('value');
+                currentRoomData = roomSnapshot.val();
+                
+                if (!currentRoomData) {
+                    alert('Oda bulunamadı!');
+                    return;
+                }
+                
+                isRoomOwner = currentUser.uid === currentRoomData.owner;
+                
+                // Add to active viewers
+                const viewerRef = db.ref('rooms/' + roomId + '/activeViewers/' + currentUser.uid);
+                await viewerRef.set({
+                    joinedAt: firebase.database.ServerValue.TIMESTAMP,
+                    lastSeen: firebase.database.ServerValue.TIMESTAMP,
+                    isOwner: isRoomOwner,
+                    currentDrift: 0
+                });
+                
+                viewerRef.onDisconnect().remove();
+                
+                await initClockSync();
+                await create3DScene();
+                
+                document.getElementById('ui-overlay').classList.add('hidden');
+                document.getElementById('vr-controls').style.display = 'flex';
+                document.getElementById('room-info').style.display = 'block';
+                document.getElementById('sync-status').style.display = 'block';
+                
+                updateRoomInfoDisplay();
+                listenVideoState();
+                
+                if (isRoomOwner) {
+                    // Owner will send keyframes via master interval
+                    debugLog('👑 Room owner mode');
+                } else {
+                    listenKeyframes();
+                }
+                
+                // Start master interval for all periodic tasks
+                startMasterInterval();
+                
+            } catch (error) {
+                console.error('❌ Odaya katılma hatası:', error);
+                alert('Odaya katılınamadı: ' + error.message);
+            }
+        }
+        
+        function leaveRoom() {
+            if (currentRoomId && currentUser) {
+                db.ref('rooms/' + currentRoomId + '/activeViewers/' + currentUser.uid).remove();
+            }
+            
+            // Stop master interval FIRST
+            stopMasterInterval();
+            
+            // Clear all intervals
+            clearAllIntervals();
+            
+            // Remove Firebase listeners
+            if (videoStateListener) {
+                videoStateListener.off();
+                videoStateListener = null;
+            }
+            if (keyframeListener) {
+                keyframeListener.off();
+                keyframeListener = null;
+            }
+            
+            // Clean up video element properly
+            if (videoElement) {
+                videoElement.pause();
+                videoElement.removeAttribute('src');
+                videoElement.load(); // Force release
+                videoElement.remove();
+                videoElement = null;
+            }
+            
+            // Remove scene elements
+            const scene = document.querySelector('a-scene');
+            const videoScreen = document.getElementById('video-screen');
+            const environment = document.querySelector('[environment]');
+            const vrPanel = document.getElementById('vr-panel');
+            
+            if (videoScreen) videoScreen.remove();
+            if (environment) environment.remove();
+            if (vrPanel) vrPanel.remove();
+            
+            document.getElementById('ui-overlay').classList.remove('hidden');
+            document.getElementById('vr-controls').style.display = 'none';
+            document.getElementById('room-info').style.display = 'none';
+            document.getElementById('sync-status').style.display = 'none';
+            
+            currentRoomId = null;
+            currentRoomData = null;
+            isRoomOwner = false;
+            lastDriftValue = null;
+        }
+        
+        async function showRoomList() {
+            const roomsSnapshot = await db.ref('rooms').limitToLast(20).once('value');
+            const roomList = document.getElementById('room-list');
+            roomList.innerHTML = '';
+            
+            const rooms = [];
+            const roomsToDelete = [];
+            
+            roomsSnapshot.forEach(child => {
+                const roomData = child.val();
+                const viewerCount = roomData.activeViewers ? Object.keys(roomData.activeViewers).length : 0;
+                
+                if (viewerCount === 0) {
+                    // Mark empty rooms for deletion
+                    roomsToDelete.push(child.key);
+                } else {
+                    rooms.push({ id: child.key, ...roomData });
+                }
+            });
+            
+            // Delete empty rooms
+            if (roomsToDelete.length > 0) {
+                debugLog('🗑️ Deleting empty rooms:', roomsToDelete.length);
+                for (const roomId of roomsToDelete) {
+                    await db.ref('rooms/' + roomId).remove().catch(err => {
+                        console.warn('Failed to delete room:', roomId, err);
+                    });
+                }
+            }
+            
+            rooms.reverse().forEach(room => {
+                const div = document.createElement('div');
+                div.className = 'room-item';
+                const viewerCount = room.activeViewers ? Object.keys(room.activeViewers).length : 0;
+                div.innerHTML = `
+                    <div class="room-name">${room.name}</div>
+                    <div class="room-details">
+                        👥 ${viewerCount} izleyici
+                        ${room.videoState && room.videoState.isPlaying ? '▶️ Oynatılıyor' : '⏸️ Duraklatıldı'}
+                    </div>
+                `;
+                div.onclick = () => {
+                    joinRoom(room.id);
+                };
+                roomList.appendChild(div);
+            });
+            
+            if (rooms.length === 0) {
+                roomList.innerHTML = '<div style="text-align: center; opacity: 0.7; padding: 20px;">Henüz aktif oda yok</div>';
+            }
+            
+            document.getElementById('create-room-section').classList.add('hidden');
+            document.getElementById('room-list-section').classList.remove('hidden');
+        }
+        
+        function showCreateRoom() {
+            document.getElementById('create-room-section').classList.remove('hidden');
+            document.getElementById('room-list-section').classList.add('hidden');
+        }
+        
+        // ==================== 3D SCENE ====================
+        async function create3DScene() {
+            const scene = document.querySelector('a-scene');
+            const assets = document.querySelector('a-assets');
+            
+            // Create video element
+            videoElement = document.createElement('video');
+            videoElement.id = 'video-player';
+            videoElement.setAttribute('crossorigin', 'anonymous');
+            videoElement.setAttribute('playsinline', '');
+            videoElement.setAttribute('webkit-playsinline', ''); // iOS support
+            
+            // Intelligent preload strategy
+            // Start with metadata only, then load buffer when needed
+            videoElement.setAttribute('preload', 'metadata');
+            
+            // Performance: Limit video dimensions to reduce GPU load
+            videoElement.style.maxWidth = '1280px';
+            videoElement.style.maxHeight = '720px';
+            
+            videoElement.muted = false;
+            videoElement.src = processVideoUrl(currentRoomData.videoUrl);
+            
+            // Preload first 10 seconds when metadata is loaded
+            videoElement.addEventListener('loadedmetadata', () => {
+                if (videoElement.duration > 0) {
+                    // Set preload to auto after metadata loaded
+                    videoElement.setAttribute('preload', 'auto');
+                    debugLog('📹 Video metadata loaded, duration:', videoElement.duration);
+                }
+            }, { once: true });
+            
+            assets.appendChild(videoElement);
+            
+            // Create video screen
+            const sizes = {
+                small: { width: 8, height: 4.5 },
+                medium: { width: 12, height: 6.75 },
+                large: { width: 16, height: 9 },
+                huge: { width: 20, height: 11.25 }
+            };
+            
+            const size = sizes[currentRoomData.screenSize] || sizes.medium;
+            
+            const videoScreen = document.createElement('a-video');
+            videoScreen.id = 'video-screen';
+            videoScreen.setAttribute('src', '#video-player');
+            videoScreen.setAttribute('width', size.width);
+            videoScreen.setAttribute('height', size.height);
+            videoScreen.setAttribute('position', '0 2 -10');
+            
+            // Performance optimization: Limit video texture update rate
+            videoScreen.setAttribute('material', 'shader: flat; fps: 30');
+            
+            scene.appendChild(videoScreen);
+            
+            // Create environment
+            if (currentRoomData.environment !== 'none') {
+                const env = document.createElement('a-entity');
+                env.setAttribute('environment', `preset: ${currentRoomData.environment}`);
+                scene.appendChild(env);
+            }
+            
+            // Create VR control panel
+            createVRControlPanel();
+        }
+        
+        function processVideoUrl(url) {
+            // YouTube
+            const ytMatch = url.match(/(youtu\.be\/|youtube\.com\/watch\?v=|\/embed\/|\/v\/|\/shorts\/)([a-zA-Z0-9_-]{11})/);
+            if (ytMatch) {
+                return `https://www.youtube.com/embed/${ytMatch[2]}?autoplay=1&controls=0`;
+            }
+            
+            // Google Drive
+            const gdMatch = url.match(/drive\.google\.com.*[?&]?(file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/);
+            if (gdMatch) {
+                return `https://drive.google.com/uc?export=download&id=${gdMatch[2]}`;
+            }
+            
+            return url;
+        }
+        
+        function createVRControlPanel() {
+            const scene = document.querySelector('a-scene');
+            
+            const panel = document.createElement('a-entity');
+            panel.id = 'vr-panel';
+            panel.setAttribute('position', '0 1.5 -2');
+            panel.setAttribute('rotation', '0 0 0');
+            
+            const bg = document.createElement('a-plane');
+            bg.setAttribute('width', '3');
+            bg.setAttribute('height', '0.6');
+            bg.setAttribute('color', '#000');
+            bg.setAttribute('opacity', '0.8');
+            panel.appendChild(bg);
+            
+            const buttons = [
+                { text: '▶️', pos: '-1 0 0.01', action: 'playVideo' },
+                { text: '⏸️', pos: '-0.5 0 0.01', action: 'pauseVideo' },
+                { text: '⏪', pos: '0 0 0.01', action: 'seekBackward' },
+                { text: '⏩', pos: '0.5 0 0.01', action: 'seekForward' },
+                { text: '🚪', pos: '1 0 0.01', action: 'leaveRoom' }
+            ];
+            
+            buttons.forEach(btn => {
+                const button = document.createElement('a-plane');
+                button.setAttribute('width', '0.4');
+                button.setAttribute('height', '0.4');
+                button.setAttribute('color', '#667eea');
+                button.setAttribute('position', btn.pos);
+                button.classList.add('clickable');
+                
+                const text = document.createElement('a-text');
+                text.setAttribute('value', btn.text);
+                text.setAttribute('align', 'center');
+                text.setAttribute('width', '1.5');
+                text.setAttribute('position', '0 0 0.01');
+                button.appendChild(text);
+                
+                button.addEventListener('click', () => {
+                    window[btn.action]();
+                });
+                
+                panel.appendChild(button);
+            });
+            
+            scene.appendChild(panel);
+        }
+        
+        // ==================== VIDEO CONTROLS ====================
+        async function playVideo() {
+            if (!isRoomOwner) {
+                alert('Sadece oda sahibi videoyu kontrol edebilir!');
+                return;
+            }
+            
+            const startTimestamp = getServerTime() + PLAY_BUFFER_TIME;
+            const currentTime = videoElement.currentTime;
+            
+            await db.ref('rooms/' + currentRoomId + '/videoState').update({
+                isPlaying: true,
+                currentTime: currentTime,
+                startTimestamp: startTimestamp,
+                lastUpdate: firebase.database.ServerValue.TIMESTAMP
+            });
+            
+            debugLog('▶️ Play command sent');
+        }
+        
+        async function pauseVideo() {
+            if (!isRoomOwner) {
+                alert('Sadece oda sahibi videoyu kontrol edebilir!');
+                return;
+            }
+            
+            const currentTime = videoElement.currentTime;
+            
+            await db.ref('rooms/' + currentRoomId + '/videoState').update({
+                isPlaying: false,
+                currentTime: currentTime,
+                lastUpdate: firebase.database.ServerValue.TIMESTAMP
+            });
+            
+            videoElement.pause();
+            debugLog('⏸️ Pause command sent');
+        }
+        
+        async function seekForward() {
+            if (!isRoomOwner) {
+                alert('Sadece oda sahibi videoyu kontrol edebilir!');
+                return;
+            }
+            if (!videoElement) return;
+            await seekTo(videoElement.currentTime + 10);
+        }
+        
+        async function seekBackward() {
+            if (!isRoomOwner) {
+                alert('Sadece oda sahibi videoyu kontrol edebilir!');
+                return;
+            }
+            if (!videoElement) return;
+            await seekTo(Math.max(0, videoElement.currentTime - 10));
+        }
+        
+        async function seekTo(time) {
+            if (!isRoomOwner) return;
+            
+            // Update local video immediately for instant feedback
+            if (videoElement) {
+                videoElement.currentTime = time;
+            }
+            
+            const startTimestamp = getServerTime() + PLAY_BUFFER_TIME;
+            
+            await db.ref('rooms/' + currentRoomId + '/videoState').update({
+                currentTime: time,
+                startTimestamp: startTimestamp,
+                lastUpdate: firebase.database.ServerValue.TIMESTAMP
+            });
+            
+            debugLog('🎯 Seek to', time);
+        }
+        
+        // ==================== SYNC SYSTEM ====================
+        function listenVideoState() {
+            videoStateListener = db.ref('rooms/' + currentRoomId + '/videoState');
+            
+            videoStateListener.on('value', async (snapshot) => {
+                const state = snapshot.val();
+                if (!state || !videoElement) return;
+                
+                // Update local cache
+                if (!currentRoomData) currentRoomData = {};
+                currentRoomData.videoState = state;
+                
+                const serverTime = getServerTime();
+                const expectedTime = state.isPlaying 
+                    ? state.currentTime + (serverTime - state.startTimestamp) / 1000
+                    : state.currentTime;
+                
+                const drift = Math.abs(videoElement.currentTime - expectedTime) * 1000;
+                
+                if (state.isPlaying) {
+                    if (videoElement.paused) {
+                        videoElement.currentTime = expectedTime;
+                        videoElement.play().catch(e => console.warn(e));
+                    }
+                    
+                    // Optimized drift correction - less aggressive to reduce CPU load
+                    if (drift > TIER3THRESHOLD) {
+                        // Major drift: hard seek
+                        videoElement.currentTime = expectedTime;
+                        if (videoElement.playbackRate !== 1.0) {
+                            videoElement.playbackRate = 1.0;
+                        }
+                    } else if (drift > TIER2THRESHOLD) {
+                        // Moderate drift: gentle speed adjustment (only if not already adjusted)
+                        if (Math.abs(videoElement.playbackRate - 1.0) < 0.05) {
+                            videoElement.playbackRate = videoElement.currentTime < expectedTime ? TIER2LAGGINGSPEED : 0.95;
+                        }
+                    } else if (drift < TIER1THRESHOLD / 2) {
+                        // Small drift: reset to normal speed
+                        if (videoElement.playbackRate !== 1.0) {
+                            videoElement.playbackRate = 1.0;
+                        }
+                    }
+                    // Between TIER1/2 and TIER2: do nothing, let natural sync happen
+                } else {
+                    if (!videoElement.paused) {
+                        videoElement.pause();
+                    }
+                    if (drift > 500) {
+                        videoElement.currentTime = expectedTime;
+                    }
+                }
+                
+                updateSyncStatus(drift);
+            });
+        }
+        
+        function sendKeyframe() {
+            if (!videoElement || !isRoomOwner) return;
+            
+            try {
+                db.ref('rooms/' + currentRoomId + '/keyframes').push({
+                    time: videoElement.currentTime,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                }).then(ref => {
+                    // Auto-delete after 30 seconds
+                    setTimeout(() => ref.remove().catch(() => {}), 30000);
+                });
+            } catch (error) {
+                console.warn('Keyframe send error:', error);
+            }
+        }
+        
+        function listenKeyframes() {
+            keyframeListener = db.ref('rooms/' + currentRoomId + '/keyframes').limitToLast(1);
+            
+            keyframeListener.on('child_added', (snapshot) => {
+                const keyframe = snapshot.val();
+                const drift = Math.abs(videoElement.currentTime - keyframe.time) * 1000;
+                
+                if (drift > TIER3THRESHOLD) {
+                    videoElement.currentTime = keyframe.time;
+                    debugLog('🔑 Keyframe sync:', keyframe.time);
+                }
+            });
+        }
+        
+        function trackDrift() {
+            if (!videoElement || !currentRoomData || !currentRoomData.videoState) return;
+            
+            try {
+                const state = currentRoomData.videoState;
+                const serverTime = getServerTime();
+                const expectedTime = state.isPlaying 
+                    ? state.currentTime + (serverTime - state.startTimestamp) / 1000
+                    : state.currentTime;
+                
+                const drift = (videoElement.currentTime - expectedTime) * 1000;
+                
+                // Only update if drift changed significantly (reduce Firebase writes)
+                if (lastDriftValue === null || Math.abs(drift - lastDriftValue) > 1000) {
+                    if (shouldUpdateFirebase()) {
+                        db.ref('rooms/' + currentRoomId + '/activeViewers/' + currentUser.uid + '/currentDrift')
+                            .set(drift)
+                            .catch(() => {});
+                        lastDriftValue = drift;
+                    }
+                }
+            } catch (error) {
+                console.warn('Drift tracking error:', error);
+            }
+        }
+        
+        function updatePresence() {
+            if (!currentUser || !currentRoomId) return;
+            
+            try {
+                db.ref('rooms/' + currentRoomId + '/activeViewers/' + currentUser.uid + '/lastSeen')
+                    .set(firebase.database.ServerValue.TIMESTAMP)
+                    .catch(() => {});
+            } catch (error) {
+                console.warn('Presence update error:', error);
+            }
+        }
+        
+        function checkOwnerPresence() {
+            if (!isRoomOwner && currentRoomData && currentUser) {
+                db.ref('rooms/' + currentRoomId + '/activeViewers/' + currentRoomData.owner).once('value')
+                    .then(snapshot => {
+                        const ownerData = snapshot.val();
+                        if (!ownerData || (Date.now() - ownerData.lastSeen > OWNERPRESENCETIMEOUT)) {
+                            // Transfer ownership
+                            db.ref('rooms/' + currentRoomId + '/activeViewers').once('value')
+                                .then(viewersSnapshot => {
+                                    const viewers = viewersSnapshot.val();
+                                    if (viewers) {
+                                        const newOwner = Object.keys(viewers)[0];
+                                        if (newOwner === currentUser.uid) {
+                                            db.ref('rooms/' + currentRoomId).update({ owner: newOwner });
+                                            isRoomOwner = true;
+                                            debugLog('👑 Ownership transferred to you');
+                                        }
+                                    }
+                                });
+                        }
+                    })
+                    .catch(() => {});
+            }
+        }
+        
+        // ==================== UI UPDATES ====================
+        function updateRoomInfoDisplay() {
+            if (!currentRoomData) return;
+            document.getElementById('room-name-display').textContent = currentRoomData.name;
+            updateViewerCount();
+        }
+        
+        function updateViewerCount() {
+            if (!currentRoomId) return;
+            
+            db.ref('rooms/' + currentRoomId + '/activeViewers').once('value')
+                .then(snapshot => {
+                    const count = snapshot.numChildren();
+                    // Batch DOM update with requestAnimationFrame
+                    requestAnimationFrame(() => {
+                        const viewerElement = document.getElementById('viewer-count');
+                        if (viewerElement) {
+                            viewerElement.textContent = `👥 ${count} izleyici`;
+                        }
+                    });
+                })
+                .catch(() => {});
+        }
+        
+        function cleanupOldData() {
+            if (!currentRoomId || !isRoomOwner) return;
+            
+            try {
+                const cutoffTime = Date.now() - 60000; // 60 seconds ago
+                
+                // Cleanup old keyframes
+                db.ref('rooms/' + currentRoomId + '/keyframes').once('value')
+                    .then(snapshot => {
+                        if (snapshot.exists()) {
+                            snapshot.forEach(child => {
+                                const data = child.val();
+                                if (data.timestamp && data.timestamp < cutoffTime) {
+                                    child.ref.remove().catch(() => {});
+                                }
+                            });
+                        }
+                    })
+                    .catch(() => {});
+                
+                debugLog('🧹 Cleanup old data');
+            } catch (error) {
+                console.warn('Cleanup error:', error);
+            }
+        }
+        
+        function updateSyncStatus(drift) {
+            // Use requestAnimationFrame to batch DOM updates
+            if (!shouldUpdateUI()) return;
+            
+            requestAnimationFrame(() => {
+                const statusText = document.getElementById('sync-text');
+                if (!statusText) return;
+                
+                if (drift < TIER1THRESHOLD) {
+                    statusText.textContent = '✅ Senkronize';
+                    statusText.className = 'status-good';
+                } else if (drift < TIER2THRESHOLD) {
+                    statusText.textContent = '⚠️ Hafif sapma';
+                    statusText.className = 'status-warning';
+                } else {
+                    statusText.textContent = '❌ Senkronizasyon kaybı';
+                    statusText.className = 'status-error';
+                }
+            });
+        }
+        
+        // ==================== INIT ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🎬 VR Cinema ULTRA - Ready!');
+            
+            // VR mode enter/exit handlers for raycaster optimization
+            const scene = document.querySelector('a-scene');
+            if (scene) {
+                scene.addEventListener('enter-vr', () => {
+                    const cursor = document.getElementById('vr-cursor');
+                    if (cursor) {
+                        cursor.setAttribute('visible', 'true');
+                        debugLog('👓 VR mode: Raycaster enabled');
+                    }
+                });
+                
+                scene.addEventListener('exit-vr', () => {
+                    const cursor = document.getElementById('vr-cursor');
+                    if (cursor) {
+                        cursor.setAttribute('visible', 'false');
+                        debugLog('👓 VR mode exit: Raycaster disabled');
+                    }
+                });
+            }
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (!currentRoomId || !isRoomOwner) return;
+                
+                switch(e.key) {
+                    case ' ': // Space - Play/Pause
+                        e.preventDefault();
+                        if (videoElement && videoElement.paused) {
+                            playVideo();
+                        } else {
+                            pauseVideo();
+                        }
+                        break;
+                    case 'ArrowLeft': // Left arrow - Rewind 10s
+                        e.preventDefault();
+                        seekBackward();
+                        break;
+                    case 'ArrowRight': // Right arrow - Forward 10s
+                        e.preventDefault();
+                        seekForward();
+                        break;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

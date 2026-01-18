@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR Sinema ULTRA - Optimized</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    
+    <!-- A-Frame VR -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <link rel="stylesheet" href="index.css">
+    
+</head>
+<body>
+    <!-- UI Overlay -->
+    <div id="ui-overlay">
+        <div class="container">
+            <h1>🎬 VR Sinema ULTRA</h1>
+            
+            <div id="create-room-section">
+                <div class="input-group">
+                    <label>Oda Adı</label>
+                    <input type="text" id="room-name" placeholder="Özel film gecesi">
+                </div>
+                
+                <div class="input-group">
+                    <label>Video URL</label>
+                    <input type="text" id="video-url" placeholder="YouTube, Google Drive veya direkt video linki">
+                </div>
+                
+                <div class="input-group">
+                    <label>Açıklama (isteğe bağlı)</label>
+                    <textarea id="room-description" placeholder="Bu odada ne izlenecek?"></textarea>
+                </div>
+                
+                <div class="input-group">
+                    <label>Ekran Boyutu</label>
+                    <select id="screen-size">
+                        <option value="medium">Orta (16:9)</option>
+                        <option value="large">Büyük (21:9)</option>
+                        <option value="imax">IMAX (1.43:1)</option>
+                    </select>
+                </div>
+                
+                <div class="input-group">
+                    <label>Ortam</label>
+                    <select id="environment">
+                        <option value="none">Yok (En Hızlı)</option>
+                        <option value="minimal">Minimal</option>
+                    </select>
+                </div>
+                
+                <button onclick="createRoom()">🚀 Oda Oluştur ve Katıl</button>
+                <button onclick="showRoomList()">📋 Mevcut Odalar</button>
+            </div>
+            
+            <div id="room-list-section" class="hidden">
+                <button onclick="showCreateRoom()">← Geri</button>
+                <div id="room-list"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- VR Controls (2D overlay) -->
+    <div id="vr-controls">
+        <button id="btn-play" onclick="playVideo()">▶️ Oynat</button>
+        <button id="btn-pause" onclick="pauseVideo()">⏸️ Duraklat</button>
+        <button id="btn-rewind" onclick="seekBackward()">⏪ -10s</button>
+        <button id="btn-forward" onclick="seekForward()">⏩ +10s</button>
+        <button id="btn-sync" onclick="initiateSync()">🔄 Sync</button>
+        <button onclick="leaveRoom()">🚪 Çık</button>
+    </div>
+    
+    <!-- Room Info -->
+    <div id="room-info">
+        <div id="room-name-display"></div>
+        <div id="viewer-count"></div>
+    </div>
+    
+    <!-- Sync Status -->
+    <div id="sync-status">
+        <span id="sync-text">Senkronize</span>
+        <div id="sync-countdown" style="display: none; margin-top: 5px; font-size: 18px; font-weight: bold;"></div>
+    </div>
+    
+    <!-- Buffer Timer -->
+    <div id="buffer-timer"></div>
+    
+    <!-- Buffer Countdown -->
+    <div id="buffer-countdown"></div>
+    
+    <!-- A-Frame Scene -->
+    <a-scene vr-mode-ui="enabled: true" loading-screen="enabled: false">
+        <a-assets></a-assets>
+        
+        <!-- Camera with cursor for VR interaction (optimized) -->
+        <a-camera position="0 1.6 0">
+            <a-cursor
+                id="vr-cursor"
+                color="#4ade80"
+                raycaster="objects: .clickable; interval: 1000; far: 5"
+                fuse="false"
+                visible="false">
+            </a-cursor>
+        </a-camera>
+        
+        <!-- Lighting (minimal for performance) -->
+        <a-light type="ambient" color="#BBB" intensity="0.5"></a-light>
+    </a-scene>
+    
+    <script src="index.js"></script>
+</body> 
+</html>

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VR Sinema - Ultimate Versiyon</title>
+    
+    <!-- A-Frame & Kütüphaneler -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-environment-component@1.3.2/dist/aframe-environment-component.min.js"></script>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    
+    <!-- Ana CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <style>
+        /* Mobil için titreme düzeltmesi */
+        body {
+            overscroll-behavior: none;
+            touch-action: pan-x pan-y;
+        }
+        
+        a-scene {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ============================================
+     2D UI OVERLAY - ANA MENÜ
+     ============================================ -->
+<div id="ui-overlay">
+    <div class="ui-container">
+        <h1>🎬 VR Sosyal Sinema</h1>
+        <p style="text-align: center; color: #667eea; font-weight: 600;">⚡ Ultimate Versiyon v4.0</p>
+        <p style="text-align: center; font-size: 0.85em; color: #666;">
+            🎥 Çok Format | 📝 Altyazı | 🎮 VR Kontrol | 📺 YouTube/Drive
+        </p>
+        
+        <!-- Ana Menü -->
+        <div id="main-menu">
+            <h2>Hoş Geldiniz</h2>
+            <button onclick="showCreateRoom()">➕ Yeni Oda Oluştur</button>
+            <button onclick="showRoomList()" class="secondary">🚪 Odalara Gözat</button>
+            <button onclick="showYouTubeSearchModal()" class="secondary">🔍 YouTube'da Ara</button>
+        </div>
+        
+        <!-- Oda Oluşturma -->
+        <div id="create-room" style="display: none;">
+            <h2>Yeni Oda Oluştur</h2>
+            <input type="text" id="room-name-input" placeholder="Oda Adı (örn: Film Gecesi)" />
+            
+            <div class="info-box">
+                💡 <strong>Desteklenen Formatlar:</strong><br>
+                🎥 <strong>Video:</strong> MP4, WebM, OGG, MKV, AVI, MOV, FLV, TS, M3U8<br>
+                📝 <strong>Altyazı:</strong> SRT, VTT, ASS, SSA, SUB<br>
+                📺 <strong>Platformlar:</strong> YouTube, Google Drive, Cloudinary, Zerostorage, Catbox, Bunny CDN<br>
+            </div>
+            
+            <label for="video-url-input">🎥 Video URL:</label>
+            <textarea id="video-url-input" placeholder="Video URL
+
+Desteklenen:
+- YouTube: https://www.youtube.com/watch?v=...
+- Google Drive: https://drive.google.com/file/d/.../view
+- Cloudinary: https://res.cloudinary.com/.../video/upload/...
+- Zerostorage: https://zerostorage.net/embed/...
+- Direkt: https://example.com/video.mp4
+- Direkt: https://example.com/video.ts
+- Catbox: https://files.catbox.moe/abc.mp4
+- Bunny CDN: https://zone.b-cdn.net/video.mp4
+- HLS Stream: https://example.com/stream.m3u8"></textarea>
+            
+            <!-- Video Kütüphanesi Seçici -->
+            <div id="video-selector-placeholder"></div>
+            
+            <label for="subtitle-url-input">📝 Altyazı URL (Opsiyonel):</label>
+            <input type="text" id="subtitle-url-input" placeholder="https://example.com/subtitle.srt" />
+            <small style="color: #666;">SRT, VTT, ASS, SSA formatları desteklenir</small>
+            
+            <div class="checkbox-container">
+                <input type="checkbox" id="private-room" />
+                <label for="private-room">🔒 Özel Oda (Şifre Korumalı)</label>
+            </div>
+            
+            <input type="password" id="room-password" placeholder="Oda Şifresi (opsiyonel)" style="display: none;" />
+            
+            <label for="screen-size">Ekran Tipi:</label>
+            <select id="screen-size">
+                <option value="flat">Düz Ekran (16:9)</option>
+                <option value="360">360° Video</option>
+                <option value="180">180° Video</option>
+            </select>
+            
+            <div class="radio-container">
+                <strong>🎮 Video Kontrolü:</strong>
+                <label>
+                    <input type="radio" name="control-mode" value="owner" checked>
+                    Sadece oda sahibi kontrol edebilir
+                </label>
+                <label>
+                    <input type="radio" name="control-mode" value="everyone">
+                    Herkes kontrol edebilir
+                </label>
+            </div>
+            
+            <h2>🎭 Sinema Ortamı Seçin (5 Hafif Ortam)</h2>
+            <label for="environment-select">Ortam:</label>
+            <select id="environment-select">
+                <option value="none" selected>Ortamsız (En Hafif)</option>
+                <option value="default">Klasik Sinema</option>
+                <option value="forest">Orman</option>
+                <option value="starry">Yıldızlı Gece</option>
+                <option value="goaland">Gökyüzü Adası</option>
+            </select>
+            
+            <br><br>
+            <button onclick="createRoom()">🎬 Oda Oluştur ve Başlat</button>
+            <button onclick="showMainMenu()" class="secondary">◀ Geri</button>
+        </div>
+        
+        <!-- Oda Listesi -->
+        <div id="room-list" style="display: none;">
+            <h2>Aktif Odalar</h2>
+            <div id="rooms-list">
+                <div class="loading">⏳ Odalar yükleniyor...</div>
+            </div>
+            <br>
+            <button onclick="listRooms()" class="secondary">🔄 Manuel Yenile</button>
+            <button onclick="showMainMenu()" class="secondary">◀ Geri</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================
+     VR KONTROL PANELİ (2D)
+     ============================================ -->
+<div id="vr-controls">
+    <button onclick="togglePlayPause()">▶ Play/Pause</button>
+    <button onclick="stopVideo()" class="stop">⏹ Durdur (Başa Sar)</button>
+    <button onclick="location.reload()">🚪 Odadan Çık</button>
+</div>
+
+<!-- ============================================
+     ODA BİLGİ PANELİ
+     ============================================ -->
+<div id="room-info-display">
+    <div><strong id="room-name">Oda</strong></div>
+    <div style="font-size: 0.9em; margin-top: 5px;">
+        👥 <span id="viewers-count">0</span> İzleyici
+    </div>
+    <div style="font-size: 0.9em; margin-top: 5px;">
+        🎮 <span id="control-mode">Kontrol Modu</span>
+    </div>
+    <div id="sync-status" style="margin-top: 10px; font-size: 0.85em; display: none;"></div>
+    <div style="font-size: 0.8em; margin-top: 10px; color: #aaa;">
+        Klavye: Space, ←→, WASD, R, C, M, F
+    </div>
+</div>
+
+<!-- ============================================
+     VR SAHNESİ - MOBİL OPTİMİZE
+     ============================================ -->
+<a-scene 
+    loading-screen="enabled: false" 
+    cursor="rayOrigin: mouse"
+    vr-mode-ui="enabled: true"
+    device-orientation-permission-ui="enabled: true">
+    
+    <!-- Ortam -->
+    <a-entity 
+        id="environment" 
+        environment="preset: default; lighting: distant;">
+    </a-entity>
+    
+    <!-- Video Ekranı -->
+    <a-plane 
+        id="video-screen" 
+        position="0 2 -10" 
+        width="16" 
+        height="9" 
+        visible="false"
+        material="shader: flat;">
+    </a-plane>
+    
+    <!-- Zemin -->
+    <a-plane 
+        position="0 0 0" 
+        rotation="-90 0 0" 
+        width="100" 
+        height="100" 
+        color="#1a1a2e">
+    </a-plane>
+    
+    <!-- Işıklandırma -->
+    <a-light type="ambient" color="#444"></a-light>
+    <a-light type="directional" position="0 10 5" intensity="0.5"></a-light>
+    
+    <!-- Kamera - MOBİL OPTİMİZE -->
+    <a-entity id="camera-rig" position="0 1.6 0">
+        <a-camera>
+            <!-- VR Controller Raycaster - Optimized -->
+            <a-entity 
+                cursor="fuse: false; rayOrigin: mouse"
+                raycaster="objects: .clickable; far: 20">
+            </a-entity>
+        </a-camera>
+        
+        <!-- VR Controllers - Optimized -->
+        <a-entity 
+            id="left-hand" 
+            laser-controls="hand: left" 
+            raycaster="objects: .clickable; far: 20; lineColor: cyan; lineOpacity: 0.5">
+        </a-entity>
+        
+        <a-entity 
+            id="right-hand" 
+            laser-controls="hand: right" 
+            raycaster="objects: .clickable; far: 20; lineColor: cyan; lineOpacity: 0.5">
+        </a-entity>
+    </a-entity>
+</a-scene>
+
+<!-- ============================================
+     UI FONKSİYONLARI - DÜZELTİLMİŞ
+     ============================================ -->
+<script>
+// Menü navigasyonu
+function showMainMenu() {
+    const mainMenu = document.getElementById('main-menu');
+    const createRoom = document.getElementById('create-room');
+    const roomList = document.getElementById('room-list');
+    
+    if (mainMenu) mainMenu.style.display = 'block';
+    if (createRoom) createRoom.style.display = 'none';
+    if (roomList) roomList.style.display = 'none';
+}
+
+function showCreateRoom() {
+    const mainMenu = document.getElementById('main-menu');
+    const createRoom = document.getElementById('create-room');
+    const roomList = document.getElementById('room-list');
+    
+    if (mainMenu) mainMenu.style.display = 'none';
+    if (createRoom) createRoom.style.display = 'block';
+    if (roomList) roomList.style.display = 'none';
+    
+    // Video seçiciyi ekle (henüz eklenmemişse)
+    const placeholder = document.getElementById('video-selector-placeholder');
+    if (placeholder && !placeholder.hasChildNodes()) {
+        const selector = createVideoSelector();
+        placeholder.appendChild(selector);
+    }
+}
+
+function showRoomList() {
+    const mainMenu = document.getElementById('main-menu');
+    const createRoom = document.getElementById('create-room');
+    const roomList = document.getElementById('room-list');
+    
+    if (mainMenu) mainMenu.style.display = 'none';
+    if (createRoom) createRoom.style.display = 'none';
+    if (roomList) roomList.style.display = 'block';
+    
+    listRooms();
+}
+
+// Şifre checkbox kontrolü
+document.addEventListener('DOMContentLoaded', () => {
+    const privateCheckbox = document.getElementById('private-room');
+    const passwordInput = document.getElementById('room-password');
+    
+    if (privateCheckbox && passwordInput) {
+        privateCheckbox.addEventListener('change', (e) => {
+            passwordInput.style.display = e.target.checked ? 'block' : 'none';
+        });
+    }
+});
+
+// Mobil titreme düzeltmesi - SADECE A-FRAME SAHNESİNDE
+if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+    // UI Overlay'de scroll'a izin ver
+    const uiOverlay = document.getElementById('ui-overlay');
+    if (uiOverlay) {
+        uiOverlay.style.touchAction = 'pan-y pinch-zoom';
+        uiOverlay.style.webkitOverflowScrolling = 'touch';
+    }
+    
+    // Sadece A-Frame sahnesinde scroll'u engelle
+    const scene = document.querySelector('a-scene');
+    if (scene) {
+        scene.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+    }
+}
+</script>
+
+<!-- ============================================
+     JAVASCRIPT MODÜLLER (15 DOSYA - ULTIMATE VERSİYON)
+     ============================================ -->
+<script>
+const v = new Date().getTime(); 
+document.write('<script src="js/apilermapiler.js?v=' + v + '"><\/script>');
+document.write('<script src="js/1-config.js?v=' + v + '"><\/script>');
+document.write('<script src="js/2-globals.js?v=' + v + '"><\/script>');
+document.write('<script src="js/3-ui-functions.js?v=' + v + '"><\/script>');
+document.write('<script src="js/4-video-detection.js?v=' + v + '"><\/script>');
+document.write('<script src="js/5-room-management.js?v=' + v + '"><\/script>');
+document.write('<script src="js/6-video-setup.js?v=' + v + '"><\/script>');
+document.write('<script src="js/8-firebase-sync.js?v=' + v + '"><\/script>');
+document.write('<script src="js/15-hybrid-sync.js?v=' + v + '"><\/script>');
+document.write('<script src="js/10-subtitle-system.js?v=' + v + '"><\/script>');
+document.write('<script src="js/11-vr-ui-panel.js?v=' + v + '"><\/script>');
+document.write('<script src="js/12-youtube-gdrive-api.js?v=' + v + '"><\/script>');
+document.write('<script src="js/14-video-library.js?v=' + v + '"><\/script>');
+document.write('<script src="js/13-init.js?v=' + v + '"><\/script>');
+</script>
+
+</body>
+</html>

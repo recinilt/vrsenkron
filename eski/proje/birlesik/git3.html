@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tek Sayfa — Firebase ile Senkron VR İzleme (Düzeltilmiş)</title>
+
+  <!-- A-Frame (VR/360) -->
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+
+  <style>
+    body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; height:100vh; overflow:hidden; }
+    #ui {
+      position: absolute; z-index: 20; left:12px; top:12px; background: rgba(0,0,0,0.55);
+      color:#fff; padding:12px; border-radius:8px; max-width:380px;
+    }
+    #ui input, #ui button, #ui label { margin:6px 0; display:block; width:100%; }
+    #controls { margin-top:8px; }
+    .hidden { display:none; }
+    a-scene, canvas { width:100vw !important; height:100vh !important; position:absolute; top:0; left:0; }
+    #status { font-size:13px; color:#ddd; margin-top:6px; word-break:break-word; }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <h2 style="margin:0 0 8px 0">VR Senkron İzleyici (Firebase)</h2>
+
+    <div id="login-section">
+      <div style="font-size:13px; color:#ddd">Firebase ile anonim giriş yapılıyor...</div>
+    </div>
+
+    <div id="room-section" class="hidden">
+      <input id="room-id" placeholder="Oda ID (ör: myroom)" />
+      <button id="join-btn">Odaya Katıl / Oluştur</button>
+      <div id="room-meta" style="font-size:13px; color:#ddd; margin-top:6px"></div>
+
+      <div id="controls" class="hidden">
+        <button id="become-host">Kontrolü Al (Become Host)</button>
+        <div style="display:flex; gap:6px; margin-top:6px">
+          <button id="play-btn">Play</button>
+          <button id="pause-btn">Pause</button>
+          <button id="mute-btn">Mute</button>
+        </div>
+        <label style="margin-top:6px">Seek:
+          <input id="seek" type="range" min="0" max="1000" value="0" step="1" />
+        </label>
+        <button id="enter-vr" style="margin-top:6px">Enter VR</button>
+
+        <div id="status"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:8px; font-size:12px; color:#aaa">
+      Not: Video dosyasını aynı dizine koyun: <code>360video.mp4</code> veya <code>index.html</code>'de src'yi değiştirin. HTTP üzerinden servis edin (örn. `npx http-server .`).
+    </div>
+  </div>
+
+  <!-- A-Frame scene + video asset
+       Başlangıçta a-videosphere'in src'si boş bırakılıyor; video 'canplay' olduğunda bağlanacak. -->
+  <a-scene>
+    <a-assets>
+      <!-- Yerel 360 video: aynı klasöre koyun -->
+      <video id="video"
+             src="https://vr-sinema.online/videos/chocolat-cikolata-2000-turkce-dublaj.mp4"
+             crossorigin="anonymous"
+             preload="auto"
+             loop
+             playsinline
+             webkit-playsinline
+             muted></video>
+    </a-assets>
+
+    <!-- Başlangıçta src boş, daha sonra JS ile '#video' atanır -->
+    <a-videosphere id="sphere" src="" rotation="0 -90 0"></a-videosphere>
+    <a-camera wasd-controls-enabled="false"></a-camera>
+  </a-scene>
+
+  <!-- Firebase (modular) -->
+  <script type="module">
+    // -----------------------------
+    // Firebase yapılandırması (kullanıcının verdiği)
+    // -----------------------------
+    const firebaseConfig = {
+      apiKey: "AIzaSyC60idSLdAiqAjPWAOMaM3g8LAKPGEUwH8",
+      authDomain: "vr-sinema.firebaseapp.com",
+      databaseURL: "https://vr-sinema-default-rtdb.firebaseio.com",
+      projectId: "vr-sinema",
+      storageBucket: "vr-sinema.firebasestorage.app",
+      messagingSenderId: "724648238300",
+      appId: "1:724648238300:web:dceba8c536e8a5ffd96819"
+    };
+
+    // Modüler SDK importları (CDN)
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
+    import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
+    import {
+      getDatabase, ref, set, onValue, onDisconnect, serverTimestamp,
+      runTransaction, remove, get as firebaseGet
+    } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js';
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    // UI elemanları
+    const loginSection = document.getElementById('login-section');
+    const roomSection = document.getElementById('room-section');
+    const joinBtn = document.getElementById('join-btn');
+    const roomIdInput = document.getElementById('room-id');
+    const roomMeta = document.getElementById('room-meta');
+    const controls = document.getElementById('controls');
+    const becomeHostBtn = document.getElementById('become-host');
+    const playBtn = document.getElementById('play-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const seekInput = document.getElementById('seek');
+    const statusEl = document.getElementById('status');
+    const muteBtn = document.getElementById('mute-btn');
+    const enterVrBtn = document.getElementById('enter-vr');
+
+    const video = document.getElementById('video');
+    const videosphere = document.getElementById('sphere');
+
+    // Client state
+    let uid = null;
+    let currentRoom = null;
+    let amHost = false;
+    let hostId = null;
+    let stateRef = null;
+    let hostRef = null;
+    let periodicUpdateTimer = null;
+    let hostUnsub = null;
+    let stateUnsub = null;
+    let clientsUnsub = null;
+
+    function log(s) {
+      statusEl.textContent = s;
+      console.log('[app]', s);
+    }
+
+    // Auth: anonim
+    signInAnonymously(auth)
+      .then(() => log('Anonim oturum açma isteği gönderildi.'))
+      .catch(err => log('Auth hatası: ' + err.message));
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        uid = user.uid;
+        loginSection.classList.add('hidden');
+        roomSection.classList.remove('hidden');
+        log('Giriş başarılı. UID: ' + uid);
+        const m = location.pathname.match(/^\/room\/(.+)/);
+        if (m) roomIdInput.value = decodeURIComponent(m[1]);
+      } else {
+        uid = null;
+        log('Henüz oturum yok.');
+      }
+    });
+
+    // Join
+    joinBtn.addEventListener('click', async () => {
+      const roomId = (roomIdInput.value || '').trim();
+      if (!roomId) return alert('Lütfen bir oda ID girin.');
+      if (!uid) return alert('Henüz giriş yapılmadı.');
+      await joinRoom(roomId);
+    });
+
+    async function joinRoom(roomId) {
+      leaveRoom(); // cleanup previous
+      currentRoom = roomId;
+      roomMeta.textContent = `Odaya bağlanılıyor: ${roomId} ...`;
+      stateRef = ref(db, `rooms/${roomId}/videoState`);
+      hostRef = ref(db, `rooms/${roomId}/owner`);
+      const clientsRef = ref(db, `rooms/${roomId}/activeViewers/${uid}`);
+
+      try {
+        await set(clientsRef, { timestamp: Date.now() });
+        onDisconnect(clientsRef).remove();
+      } catch (e) {
+        console.warn('presence set hatası', e);
+      }
+
+      // Claim host if none using transaction
+      try {
+        const txn = await runTransaction(ref(db, `rooms/${roomId}/owner`), (current) => {
+          if (current === null || current === undefined) return uid;
+          return current;
+        });
+        hostId = txn.snapshot.val();
+        amHost = (hostId === uid);
+        if (amHost) {
+          try { onDisconnect(hostRef).set(null); } catch (e) {}
+        }
+        log(amHost ? 'Bu oda için host atandınız.' : `Host: ${hostId}`);
+      } catch (e) {
+        console.warn('host claim hatası', e);
+      }
+
+      // listen host changes
+      hostUnsub = onValue(hostRef, (snap) => {
+        hostId = snap.val();
+        const imHost = (hostId === uid);
+        if (imHost && !amHost) {
+          try { onDisconnect(hostRef).set(null); } catch (e) {}
+        }
+        amHost = imHost;
+        updateUIForRole();
+      });
+
+      // listen clients count
+      const roomClientsRef = ref(db, `rooms/${roomId}/activeViewers`);
+      clientsUnsub = onValue(roomClientsRef, (snap) => {
+        const clients = snap.val() || {};
+        const count = Object.keys(clients).length;
+        roomMeta.textContent = `Oda: ${roomId} — Kişi: ${count} — Host: ${hostId || '(yok)'}`;
+      });
+
+      // listen state (videoState)
+      stateUnsub = onValue(stateRef, (snap) => {
+        const data = snap.val();
+        if (!data) return;
+        if (amHost) return; // host ignore
+        applyRemoteState(data);
+      });
+
+      // initial read
+      try {
+        const sSnap = await firebaseGet(stateRef);
+        if (sSnap.exists() && !amHost) applyRemoteState(sSnap.val());
+      } catch (e) {
+        console.warn('initial state okunamadı', e);
+      }
+
+      controls.classList.remove('hidden');
+      updateUIForRole();
+      startPeriodicUpdateIfHost();
+      log('Odaya katıldınız.');
+    }
+
+    function leaveRoom() {
+      stopPeriodicUpdate();
+      if (hostUnsub) hostUnsub(); hostUnsub = null;
+      if (stateUnsub) stateUnsub(); stateUnsub = null;
+      if (clientsUnsub) clientsUnsub(); clientsUnsub = null;
+      currentRoom = null;
+      amHost = false;
+      stateRef = null;
+      hostRef = null;
+    }
+
+    // Become host
+    becomeHostBtn.addEventListener('click', async () => {
+      if (!currentRoom) return;
+      try {
+        const txnResult = await runTransaction(ref(db, `rooms/${currentRoom}/owner`), () => uid);
+        hostId = txnResult.snapshot.val();
+        amHost = (hostId === uid);
+        if (amHost) {
+          try { onDisconnect(ref(db, `rooms/${currentRoom}/owner`)).set(null); } catch (e) {}
+          startPeriodicUpdateIfHost();
+          log('Kontrolü aldınız (host).');
+        }
+      } catch (e) {
+        console.error('become-host hata', e);
+      }
+    });
+
+    // Play/Pause/Seek
+    playBtn.addEventListener('click', async () => {
+      try { await video.play(); } catch(e){}
+      if (amHost && stateRef) {
+        await set(stateRef, { currentTime: video.currentTime, isPlaying: true, timestamp: Date.now() });
+      }
+      log('Play tetiklendi.');
+    });
+    pauseBtn.addEventListener('click', async () => {
+      video.pause();
+      if (amHost && stateRef) {
+        await set(stateRef, { currentTime: video.currentTime, isPlaying: false, timestamp: Date.now() });
+      }
+      log('Pause tetiklendi.');
+    });
+    seekInput.addEventListener('input', async () => {
+      const perc = seekInput.value / 1000;
+      const dur = video.duration || 0;
+      if (dur > 0) {
+        const t = perc * dur;
+        video.currentTime = t;
+        if (amHost && stateRef) {
+          await set(stateRef, { currentTime: t, isPlaying: !video.paused, timestamp: Date.now() });
+        }
+        log(`Seek: ${t.toFixed(2)}s`);
+      }
+    });
+
+    muteBtn.addEventListener('click', () => {
+      video.muted = !video.muted;
+      muteBtn.textContent = video.muted ? 'Unmute' : 'Mute';
+    });
+    enterVrBtn.addEventListener('click', () => {
+      const scene = document.querySelector('a-scene');
+      if (scene && scene.enterVR) scene.enterVR();
+    });
+
+    // seek slider update
+    setInterval(() => {
+      const dur = video.duration || 0;
+      if (dur > 0) seekInput.value = Math.floor((video.currentTime / dur) * 1000);
+    }, 300);
+
+    // Periodic host updates
+    function startPeriodicUpdateIfHost() {
+      stopPeriodicUpdate();
+      if (!amHost || !currentRoom) return;
+      periodicUpdateTimer = setInterval(async () => {
+        if (!amHost || !stateRef) return;
+        try {
+          await set(stateRef, { currentTime: video.currentTime, isPlaying: !video.paused, timestamp: Date.now() });
+        } catch (e) {
+          console.warn('host update failed', e);
+        }
+      }, 700);
+    }
+    function stopPeriodicUpdate() {
+      if (periodicUpdateTimer) { clearInterval(periodicUpdateTimer); periodicUpdateTimer = null; }
+    }
+
+    // Apply remote state for viewers
+    let lastTimestamp = 0;
+    async function applyRemoteState(data) {
+      if (!data) return;
+      try {
+        const remoteTime = (typeof data.currentTime === 'number') ? data.currentTime : null;
+        const remotePlaying = (typeof data.isPlaying === 'boolean') ? data.isPlaying : null;
+        const ts = data.timestamp || 0;
+        if (ts && ts <= lastTimestamp) {
+          // older
+        }
+        lastTimestamp = ts || Date.now();
+
+        if (remoteTime !== null) {
+          const local = video.currentTime || 0;
+          const diff = Math.abs(local - remoteTime);
+          if (diff > 0.7) {
+            video.currentTime = remoteTime;
+            log(`Zaman senkronize edildi: ${remoteTime.toFixed(2)}s (fark ${diff.toFixed(2)}s)`);
+          }
+        }
+
+        if (remotePlaying !== null) {
+          if (remotePlaying && video.paused) {
+            try { await video.play(); } catch (e) {}
+            log('Remote: Play');
+          } else if (!remotePlaying && !video.paused) {
+            video.pause();
+            log('Remote: Pause');
+          }
+        }
+      } catch (e) {
+        console.error('applyRemoteState hatası', e);
+      }
+    }
+
+    // IMPORTANT: avoid A-Frame trying to use video as texture before it has data.
+    // Wait for video 'canplay' / 'loadeddata' then attach to videosphere.
+    function attachVideoToSphereWhenReady() {
+      if (!videosphere) return;
+      const setSrc = () => {
+        try {
+          videosphere.setAttribute('src', '#video');
+          // çağrıların ardından A-Frame video texture oluşturur
+          log('Video a-videosphere bağlandı.');
+        } catch (e) {
+          console.error('videosphere src ayarlanırken hata', e);
+        }
+      };
+
+      if (video.readyState >= 2) { // HAVE_CURRENT_DATA
+        setSrc();
+      } else {
+        const onCan = () => {
+          setSrc();
+          video.removeEventListener('canplay', onCan);
+          video.removeEventListener('loadeddata', onCan);
+        };
+        video.addEventListener('canplay', onCan);
+        video.addEventListener('loadeddata', onCan);
+        // force load
+        try { video.load(); } catch (e) {}
+      }
+    }
+
+    // call on load
+    attachVideoToSphereWhenReady();
+
+    // Try to autoplay muted on first gesture
+    document.addEventListener('click', async () => {
+      if (video.paused && video.muted) {
+        try { await video.play(); } catch (e) {}
+      }
+    }, { once: true });
+
+    // Ensure we serve via HTTP. If you open file:// you may get CORS/MIME problems.
+    // End of module
+  </script>
+</body>
+</html>

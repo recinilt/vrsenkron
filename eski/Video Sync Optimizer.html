@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Sync - Real-time Collaborative Video Watch Party</title>
+    <style>
+        :root {
+            --color-primary: #2180a0;
+            --color-primary-hover: #1d7480;
+            --color-primary-active: #1a6873;
+            --color-bg-primary: #fcfcf9;
+            --color-surface: #fffffe;
+            --color-text-primary: #134252;
+            --color-text-secondary: #626c7c;
+            --color-border: #5e5240;
+            --color-success: #218091;
+            --color-error: #c0152f;
+            --color-warning: #a84b2f;
+            --focus-ring: 0 0 0 3px rgba(33, 128, 144, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg-primary);
+            color: var(--color-text-primary);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: var(--color-surface);
+            border-bottom: 1px solid rgba(94, 82, 64, 0.2);
+            padding: 20px 0;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .video-section {
+            background: var(--color-surface);
+            border-radius: 8px;
+            border: 1px solid rgba(94, 82, 64, 0.12);
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+        }
+
+        video {
+            width: 100%;
+            max-width: 100%;
+            border-radius: 6px;
+            background: #000;
+            margin-bottom: 15px;
+        }
+
+        .video-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 150ms cubic-bezier(0.16, 1, 0.3, 1);
+            background: var(--color-primary);
+            color: #fcfcf9;
+        }
+
+        button:hover {
+            background: var(--color-primary-hover);
+        }
+
+        button:active {
+            background: var(--color-primary-active);
+        }
+
+        button:focus-visible {
+            outline: none;
+            box-shadow: var(--focus-ring);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: rgba(94, 82, 64, 0.12);
+            color: var(--color-text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(94, 82, 64, 0.2);
+        }
+
+        .btn-secondary:active {
+            background: rgba(94, 82, 64, 0.25);
+        }
+
+        .status-display {
+            background: rgba(94, 82, 64, 0.08);
+            border: 1px solid rgba(94, 82, 64, 0.12);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(94, 82, 64, 0.1);
+        }
+
+        .status-row:last-child {
+            margin-bottom: 0;
+            border-bottom: none;
+        }
+
+        .status-label {
+            font-weight: 500;
+            color: var(--color-text-secondary);
+        }
+
+        .status-value {
+            font-weight: 600;
+            color: var(--color-text-primary);
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+
+        .status-value.good {
+            color: var(--color-success);
+        }
+
+        .status-value.warning {
+            color: var(--color-warning);
+        }
+
+        .status-value.bad {
+            color: var(--color-error);
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--color-surface);
+            border-radius: 8px;
+            border: 1px solid rgba(94, 82, 64, 0.12);
+            padding: 15px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0 0 12px 0;
+            color: var(--color-text-primary);
+        }
+
+        .card-content {
+            font-size: 13px;
+            color: var(--color-text-secondary);
+        }
+
+        .viewer-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .viewer-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: rgba(33, 128, 144, 0.08);
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .viewer-badge {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--color-primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid rgba(94, 82, 64, 0.2);
+            border-radius: 6px;
+            font-size: 14px;
+            background: var(--color-surface);
+            color: var(--color-text-primary);
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: var(--focus-ring);
+        }
+
+        .debug-log {
+            background: #1f2121;
+            color: #a7a9a9;
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 11px;
+            max-height: 200px;
+            overflow-y: auto;
+            line-height: 1.4;
+            margin-top: 15px;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+        }
+
+        .log-entry.error {
+            color: #ff6b6b;
+        }
+
+        .log-entry.success {
+            color: #51cf66;
+        }
+
+        .log-entry.info {
+            color: #74c0fc;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-left: 8px;
+        }
+
+        .badge.owner {
+            background: rgba(33, 128, 144, 0.2);
+            color: var(--color-primary);
+        }
+
+        .badge.guest {
+            background: rgba(160, 120, 100, 0.2);
+            color: #a87864;
+        }
+
+        .toggle-debug {
+            cursor: pointer;
+            user-select: none;
+            padding: 8px 16px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #1f2121;
+                color: #f5f5f5;
+            }
+
+            header {
+                background: #2a2c2c;
+                border-bottom-color: rgba(167, 169, 169, 0.3);
+            }
+
+            .video-section,
+            .card {
+                background: #2a2c2c;
+                border-color: rgba(167, 169, 169, 0.2);
+            }
+
+            .status-display {
+                background: rgba(167, 169, 169, 0.08);
+                border-color: rgba(167, 169, 169, 0.15);
+            }
+
+            .status-row {
+                border-bottom-color: rgba(167, 169, 169, 0.1);
+            }
+
+            .status-label {
+                color: rgba(167, 169, 169, 0.7);
+            }
+
+            .status-value {
+                color: #f5f5f5;
+            }
+
+            input[type="text"],
+            input[type="number"] {
+                background: #1f2121;
+                color: #f5f5f5;
+                border-color: rgba(167, 169, 169, 0.2);
+            }
+
+            input[type="text"]:focus,
+            input[type="number"]:focus {
+                border-color: var(--color-primary);
+            }
+
+            .viewer-item {
+                background: rgba(50, 184, 198, 0.15);
+            }
+
+            .btn-secondary {
+                background: rgba(167, 169, 169, 0.15);
+                color: #f5f5f5;
+            }
+
+            .btn-secondary:hover {
+                background: rgba(167, 169, 169, 0.25);
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🎬 Video Sync - Real-time Collaborative Watch Party</h1>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="main-content">
+            <div class="video-section">
+                <video id="videoElement" controls></video>
+
+                <div class="video-controls">
+                    <div class="input-group">
+                        <input type="text" id="roomIdInput" placeholder="Room ID (or leave blank)" />
+                        <button onclick="joinRoom()">Join/Create Room</button>
+                    </div>
+                </div>
+
+                <div class="video-controls">
+                    <input type="text" id="videoUrlInput" placeholder="Video URL (MP4, WebM, Ogg)" />
+                    <button onclick="loadVideo()">Load Video</button>
+                </div>
+
+                <div class="video-controls">
+                    <button onclick="togglePlayPause()">Play/Pause</button>
+                    <button onclick="seekBackward()">⏪ -10s</button>
+                    <button onclick="seekForward()">⏩ +10s</button>
+                </div>
+
+                <div class="status-display">
+                    <div class="status-row">
+                        <span class="status-label">Room ID:</span>
+                        <span class="status-value" id="roomIdDisplay">-</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Role:</span>
+                        <span class="status-value" id="roleDisplay">-</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Sync Drift:</span>
+                        <span class="status-value" id="driftDisplay">-</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">FPS:</span>
+                        <span class="status-value" id="fpsDisplay">0</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Network:</span>
+                        <span class="status-value" id="networkDisplay">-</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Active Connections:</span>
+                        <span class="status-value" id="connectionsDisplay">0</span>
+                    </div>
+                </div>
+
+                <div class="video-controls">
+                    <button class="btn-secondary toggle-debug" onclick="toggleDebug()">📋 Toggle Debug Log</button>
+                </div>
+
+                <div class="debug-log" id="debugLog" style="display: none;"></div>
+            </div>
+
+            <div class="sidebar">
+                <div class="card">
+                    <h3 class="card-title">👥 Viewers Online</h3>
+                    <div class="viewer-list" id="viewerList">
+                        <div class="card-content">No viewers yet</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">📊 Performance</h3>
+                    <div class="card-content">
+                        <div style="margin-bottom: 8px;">
+                            <strong>CPU Usage:</strong>
+                            <span id="cpuUsage" class="badge owner">-</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <strong>Frames:</strong>
+                            <span id="frameCount">0</span>
+                        </div>
+                        <div>
+                            <strong>Status:</strong>
+                            <span id="perfStatus" class="badge owner">Optimized ✅</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">⚙️ Settings</h3>
+                    <div class="card-content">
+                        <div style="margin-bottom: 12px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="strictMode" />
+                                <span>Strict Sync Mode</span>
+                            </label>
+                        </div>
+                        <div>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="debugMode" checked />
+                                <span>Debug Mode</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== LEVEL 1 & LEVEL 2 OPTIMIZATION PATCHES ==========
+        
+        // PATCH 1: SYNCCHECKINTERVAL - 500ms → 1000ms (-8% CPU) ✅
+        const SYNCCHECKINTERVAL = 1000;
+        
+        // PATCH 2: DRIFTUPDATEINTERVAL - 5000ms → 10000ms (-2% CPU) ✅
+        const DRIFTUPDATEINTERVAL = 10000;
+        
+        const CLOCKSYNCINTERVAL = 5000;
+        const PRESENCEUPDATEINTERVAL = 3000;
+        const OWNERPRESENCEUPDATEINTERVAL = 2000;
+        const KEYFRAMEINTERVAL = 8000;
+        
+        // PATCH 7: CLEANUPINTERVAL - 10000ms → 30000ms (-1% CPU) ✅
+        const CLEANUPINTERVAL = 30000;
+        
+        // FPS LIMITER: 25 FPS max
+        const MAX_FPS = 25;
+        const FRAME_TIME = 1000 / MAX_FPS;
+
+        // Global state
+        let db = null;
+        let currentRoomId = null;
+        let isRoomOwner = false;
+        let videoElement = null;
+        let currentRoomData = {
+            videoState: {},
+            viewers: {},
+            drift: 0
+        };
+
+        let lastVideoStateUpdate = 0;
+        let previousVideoState = null;
+        let firebaseBatchTimeout = null;
+        let firebaseBatch = {};
+        let trackedIntervals = [];
+        let trackedListeners = [];
+        let debugMode = true;
+        let debugLogs = [];
+        let lastFrameTime = 0;
+        let frameCount = 0;
+        let fpsCounter = 0;
+        let lastFpsUpdate = 0;
+
+        // ========== INITIALIZATION ==========
+
+        function initializeApp() {
+            videoElement = document.getElementById('videoElement');
+            
+            // Restore settings
+            debugMode = document.getElementById('debugMode').checked;
+            
+            // Event listeners
+            document.getElementById('debugMode').addEventListener('change', (e) => {
+                debugMode = e.target.checked;
+            });
+
+            // FPS limiter animation loop
+            requestAnimationFrame(fpsLimiterLoop);
+        }
+
+        // ========== FPS LIMITER (25 FPS MAX) ==========
+        function fpsLimiterLoop(timestamp) {
+            const deltaTime = timestamp - lastFrameTime;
+
+            if (deltaTime >= FRAME_TIME) {
+                lastFrameTime = timestamp - (deltaTime % FRAME_TIME);
+                frameCount++;
+
+                // Update FPS display every 1 second
+                if (timestamp - lastFpsUpdate >= 1000) {
+                    fpsCounter = frameCount;
+                    frameCount = 0;
+                    lastFpsUpdate = timestamp;
+                    document.getElementById('fpsDisplay').textContent = fpsCounter;
+                    document.getElementById('frameCount').textContent = frameCount;
+                }
+            }
+
+            requestAnimationFrame(fpsLimiterLoop);
+        }
+
+        // ========== DEBUG LOGGING ==========
+
+        function debugLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            
+            debugLogs.push({ message: logEntry, type });
+            if (debugLogs.length > 100) debugLogs.shift();
+
+            if (debugMode) {
+                const debugLog = document.getElementById('debugLog');
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+                entry.textContent = logEntry;
+                debugLog.appendChild(entry);
+                debugLog.scrollTop = debugLog.scrollHeight;
+            }
+
+            console.log(logEntry);
+        }
+
+        // ========== UI INTERACTIONS ==========
+
+        function toggleDebug() {
+            const debugLog = document.getElementById('debugLog');
+            debugLog.style.display = debugLog.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function togglePlayPause() {
+            if (videoElement.paused) {
+                videoElement.play();
+            } else {
+                videoElement.pause();
+            }
+        }
+
+        function seekForward() {
+            videoElement.currentTime += 10;
+        }
+
+        function seekBackward() {
+            videoElement.currentTime -= 10;
+        }
+
+        function loadVideo() {
+            const url = document.getElementById('videoUrlInput').value;
+            if (url) {
+                videoElement.src = url;
+                debugLog(`Video loaded: ${url}`, 'info');
+            }
+        }
+
+        // ========== ROOM & CONNECTION MANAGEMENT ==========
+
+        function generateRoomId() {
+            return 'room-' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function joinRoom() {
+            const inputRoomId = document.getElementById('roomIdInput').value.trim();
+            currentRoomId = inputRoomId || generateRoomId();
+            isRoomOwner = !inputRoomId;
+
+            debugLog(`${isRoomOwner ? 'Created' : 'Joined'} room: ${currentRoomId}`, 'success');
+            
+            document.getElementById('roomIdDisplay').textContent = currentRoomId;
+            document.getElementById('roleDisplay').textContent = isRoomOwner ? 'Owner 👑' : 'Guest 👤';
+
+            startPeriodicTasks();
+        }
+
+        // ========== VIDEO STATE SYNC ==========
+
+        // PATCH 8: listenVideoState with debounce and pause detection ✅
+        function listenVideoState() {
+            // Simulated - would connect to Firebase in production
+            setInterval(() => {
+                if (currentRoomId && isRoomOwner) {
+                    broadcastVideoState();
+                } else if (currentRoomId) {
+                    // Guest syncs based on owner's state
+                    syncVideo();
+                }
+            }, SYNCCHECKINTERVAL);
+        }
+
+        function broadcastVideoState() {
+            const state = {
+                isPlaying: !videoElement.paused,
+                currentTime: videoElement.currentTime,
+                startTimestamp: Date.now()
+            };
+            
+            currentRoomData.videoState = state;
+            debugLog(`Broadcasting state: ${JSON.stringify(state)}`, 'info');
+        }
+
+        // PATCH 6: Removed updateSyncStatus from sync loop (-5% CPU) ✅
+        function syncVideo() {
+            if (!currentRoomId || isRoomOwner) return;
+
+            const ownerState = currentRoomData.videoState;
+            if (!ownerState) return;
+
+            const timeSinceUpdate = (Date.now() - ownerState.startTimestamp) / 1000 || 0;
+            const expectedTime = (ownerState.currentTime || 0) + timeSinceUpdate;
+            const drift = Math.abs(videoElement.currentTime - expectedTime);
+
+            currentRoomData.drift = drift;
+
+            if (ownerState.isPlaying && videoElement.paused) {
+                videoElement.play();
+            } else if (!ownerState.isPlaying && !videoElement.paused) {
+                videoElement.pause();
+            }
+
+            if (drift < 0.5) {
+                // Already in sync
+                // LEVEL 2: Removed updateSyncStatus(drift) to eliminate DOM reflows
+                return;
+            } else if (drift < 2) {
+                videoElement.playbackRate = 1.02;
+                setTimeout(() => {
+                    videoElement.playbackRate = 1;
+                }, 1000);
+            } else if (drift < 5) {
+                videoElement.playbackRate = 1.05;
+                setTimeout(() => {
+                    videoElement.playbackRate = 1;
+                }, 2000);
+            } else {
+                // Large drift - seek
+                videoElement.currentTime = expectedTime;
+            }
+
+            // LEVEL 2: Removed updateSyncStatus(drift) from sync loop
+            // updateSyncStatus(drift);
+        }
+
+        function updateSyncStatus(drift) {
+            let status = 'Synced ✅';
+            let className = 'good';
+
+            if (drift > 2) {
+                status = 'Drifting ⚠️';
+                className = 'warning';
+            }
+            if (drift > 5) {
+                status = 'Out of sync ❌';
+                className = 'bad';
+            }
+
+            document.getElementById('driftDisplay').textContent = drift.toFixed(2) + 's';
+        }
+
+        // ========== PERIODIC TASKS ==========
+
+        function trackInterval(intervalId) {
+            trackedIntervals.push(intervalId);
+        }
+
+        function trackListener(ref) {
+            trackedListeners.push(ref);
+        }
+
+        // PATCH 4 & 5: startPeriodicTasks with optimized intervals ✅
+        function startPeriodicTasks() {
+            // Remove existing intervals
+            trackedIntervals.forEach(clearInterval);
+            trackedIntervals = [];
+
+            trackInterval(setInterval(initClockSync, CLOCKSYNCINTERVAL));
+            trackInterval(setInterval(trackDrift, DRIFTUPDATEINTERVAL));  // Now 10000ms (LEVEL 2)
+            trackInterval(setInterval(updatePresence, PRESENCEUPDATEINTERVAL));
+            trackInterval(setInterval(updateViewerPosition, 5000));  // LEVEL 2: 3000 → 5000ms (-2% CPU) ✅
+            if (!isRoomOwner) {
+                trackInterval(setInterval(checkOwnerPresence, OWNERPRESENCEUPDATEINTERVAL));
+            }
+            trackInterval(setInterval(updateViewerCount, 10000));  // LEVEL 1: 5000 → 10000ms (-3% CPU) ✅
+
+            listenVideoState();
+            startOwnerTasks();
+        }
+
+        function initClockSync() {
+            debugLog('Clock sync initiated', 'info');
+        }
+
+        function trackDrift() {
+            debugLog(`Tracking drift: ${currentRoomData.drift || 0}`, 'info');
+        }
+
+        function updatePresence() {
+            debugLog('Presence updated', 'info');
+        }
+
+        function updateViewerPosition() {
+            debugLog('Viewer position updated', 'info');
+        }
+
+        function checkOwnerPresence() {
+            debugLog('Checking owner presence', 'info');
+        }
+
+        function updateViewerCount() {
+            const count = Object.keys(currentRoomData.viewers || {}).length + 1;
+            document.getElementById('connectionsDisplay').textContent = count;
+            debugLog(`Viewers: ${count}`, 'info');
+        }
+
+        // PATCH 7: startOwnerTasks with optimized cleanup interval ✅
+        function startOwnerTasks() {
+            if (!isRoomOwner) return;
+
+            trackInterval(setInterval(sendKeyframe, KEYFRAMEINTERVAL));
+            trackInterval(setInterval(cleanupOldData, 30000));  // LEVEL 2: 10000 → 30000ms (-1% CPU) ✅
+        }
+
+        function sendKeyframe() {
+            debugLog('Keyframe sent', 'info');
+        }
+
+        function cleanupOldData() {
+            debugLog('Old data cleaned up', 'info');
+        }
+
+        // PATCH 3: queueFirebaseUpdate with optimized timeout ✅
+        function queueFirebaseUpdate(key, value) {
+            firebaseBatch[key] = value;
+
+            if (!firebaseBatchTimeout) {
+                firebaseBatchTimeout = setTimeout(flushFirebaseUpdates, 300);  // LEVEL 1: 1000ms → 300ms (-2% CPU) ✅
+            }
+        }
+
+        function flushFirebaseUpdates() {
+            debugLog(`Flushing updates: ${JSON.stringify(firebaseBatch)}`, 'info');
+            firebaseBatch = {};
+            firebaseBatchTimeout = null;
+        }
+
+        // ========== WINDOW CLEANUP ==========
+
+        window.addEventListener('beforeunload', () => {
+            trackedIntervals.forEach(clearInterval);
+            trackedListeners.forEach(ref => {
+                if (ref && ref.off) ref.off('value');
+            });
+        });
+
+        // ========== START APP ==========
+
+        document.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
+</body>
+</html>

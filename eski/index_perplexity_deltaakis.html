@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR Sinema ULTRA - Optimized</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <!-- A-Frame VR -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+        .ui-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+            z-index: 1000; display: flex; align-items: center; justify-content: center;
+            background: rgba(0, 0, 0, 0.95); transition: opacity 0.3s;
+        }
+        .ui-overlay.hidden { opacity: 0; pointer-events: none; }
+        .container {
+            max-width: 600px; width: 90%;
+            background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);
+            border-radius: 20px; padding: 40px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            text-align: center; margin-bottom: 30px; font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block; margin-bottom: 8px; font-weight: 600;
+        }
+        input, select, textarea {
+            width: 100%; padding: 12px; border: none; border-radius: 10px;
+            background: rgba(255, 255, 255, 0.9); color: #333; font-size: 16px;
+        }
+        textarea { min-height: 80px; resize: vertical; }
+        button {
+            width: 100%; padding: 15px; border: none; border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; font-size: 18px; font-weight: 600; cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s; margin-top: 10px;
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3); }
+        button:active { transform: translateY(0); }
+        .room-list {
+            max-height: 300px; overflow-y: auto; margin-top: 20px;
+        }
+        .room-item {
+            background: rgba(255, 255, 255, 0.15); padding: 15px; margin-bottom: 10px;
+            border-radius: 10px; cursor: pointer; transition: background 0.2s;
+        }
+        .room-item:hover { background: rgba(255, 255, 255, 0.25); }
+        .room-name { font-weight: 600; font-size: 18px; margin-bottom: 5px; }
+        .room-details { font-size: 14px; opacity: 0.8; }
+        #create-room-section.hidden, #room-list-section.hidden {
+            display: none !important;
+        }
+        .vr-controls {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 500; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px);
+            padding: 20px; border-radius: 15px; display: none; gap: 10px; align-items: center;
+        }
+        .vr-controls button {
+            width: auto; padding: 10px 20px; margin: 0 5px; font-size: 14px;
+        }
+        .room-info {
+            position: fixed; top: 20px; left: 20px; z-index: 500;
+            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(10px);
+            padding: 15px; border-radius: 10px; display: none; max-width: 300px;
+        }
+        .sync-status {
+            position: fixed; top: 20px; right: 20px; z-index: 500;
+            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(10px);
+            padding: 10px 15px; border-radius: 10px; display: none; font-size: 14px;
+        }
+        .status-good { color: #4ade80; }
+        .status-warning { color: #fbbf24; }
+        .status-error { color: #f87171; }
+        #buffer-countdown {
+            position: fixed; top: 60px; right: 20px; z-index: 500;
+            background: rgba(255, 165, 0, 0.9); backdrop-filter: blur(10px);
+            padding: 8px 12px; border-radius: 8px; display: none;
+            font-size: 13px; font-weight: 600; color: white;
+        }
+        .viewer-count {
+            margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        a-scene { width: 100%; height: 100vh; }
+        .hidden { display: none !important; }
+        @media (max-width: 600px) {
+            .container { padding: 20px; }
+            h1 { font-size: 2em; }
+            .vr-controls { bottom: 10px; padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- UI Overlay -->
+    <div id="ui-overlay">
+        <div class="container">
+            <h1>VR Sinema ULTRA</h1>
+            <div id="create-room-section">
+                <div class="input-group">
+                    <label>Oda Adı</label>
+                    <input type="text" id="room-name" placeholder="Özel film gecesi">
+                </div>
+                <div class="input-group">
+                    <label>Video URL</label>
+                    <input type="text" id="video-url" placeholder="YouTube, Google Drive veya direkt video linki">
+                </div>
+                <div class="input-group">
+                    <label>Açıklama İsteğe Bağlı</label>
+                    <textarea id="room-description" placeholder="Bu odada ne izlenecek?"></textarea>
+                </div>
+                <div class="input-group">
+                    <label>Ekran Boyutu</label>
+                    <select id="screen-size">
+                        <option value="medium">Orta (16:9)</option>
+                        <option value="large">Büyük (21:9)</option>
+                        <option value="imax">IMAX (1.43:1)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Ortamı</label>
+                    <select id="environment">
+                        <option value="none">Yok (En Hızlı)</option>
+                        <option value="minimal">Minimal</option>
+                    </select>
+                </div>
+                <button onclick="createRoom()">Oda Oluştur ve Katıl</button>
+                <button onclick="showRoomList()">Mevcut Odalar</button>
+            </div>
+            <div id="room-list-section" class="hidden">
+                <button onclick="showCreateRoom()">Geri</button>
+                <div id="room-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VR Controls 2D overlay -->
+    <div id="vr-controls">
+        <button id="btn-play" onclick="playVideo()">▶</button>
+        <button id="btn-pause" onclick="pauseVideo()">⏸</button>
+        <button id="btn-rewind" onclick="seekBackward()">⏪ -10s</button>
+        <button id="btn-forward" onclick="seekForward()">⏩ +10s</button>
+        <button id="btn-sync" onclick="initiateSync()">Sync</button>
+        <button onclick="leaveRoom()">✕</button>
+    </div>
+
+    <!-- Room Info -->
+    <div id="room-info">
+        <div id="room-name-display"></div>
+        <div id="viewer-count" class="viewer-count"></div>
+    </div>
+
+    <!-- Sync Status -->
+    <div id="sync-status">
+        <span id="sync-text">Senkronize</span>
+        <div id="sync-countdown" style="display: none; margin-top: 5px; font-size: 18px; font-weight: bold;"></div>
+    </div>
+
+    <!-- Buffer Timer -->
+    <div id="buffer-timer"></div>
+
+    <!-- Buffer Countdown -->
+    <div id="buffer-countdown"></div>
+
+    <!-- A-Frame Scene -->
+    <a-scene vr-mode-ui="enabled: true" loading-screen="enabled: false;">
+        <a-assets>
+            <video id="video-source" crossorigin="anonymous" playsinline webkit-playsinline preload="auto"></video>
+        </a-assets>
+
+        <!-- Camera with cursor for VR interaction -->
+        <a-camera position="0 1.6 0">
+            <a-cursor id="vr-cursor" color="#4ade80" raycaster="objects: .clickable; interval: 1000; far: 5;" fuse="false" visible="false"></a-cursor>
+        </a-camera>
+
+        <!-- Lighting minimal for performance -->
+        <a-light type="ambient" color="#BBB" intensity="0.5"></a-light>
+        <a-scene>
+</a-scene>
+
+    <script>
+        // ========================
+        // CONFIGURATION & CONSTANTS
+        // ========================
+        const firebaseConfig = {
+            apiKey: "AIzaSyC60idSLdAiqAjPWAOMaM3g8LAKPGEUwH8",
+            authDomain: "vr-sinema.firebaseapp.com",
+            databaseURL: "https://vr-sinema-default-rtdb.firebaseio.com",
+            projectId: "vr-sinema",
+            storageBucket: "vr-sinema.firebasestorage.app",
+            messagingSenderId: "724648238300",
+            appId: "1:724648238300:web:dceba8c536e8a5ffd96819"
+        };
+
+        // Optimized constants
+        const SYNC_CHECK_INTERVAL = 500;
+        const KEYFRAME_INTERVAL = 10000;
+        const CLOCK_SYNC_INTERVAL = 60000;
+        const DRIFT_UPDATE_INTERVAL = 5000;
+        const PRESENCE_UPDATE_INTERVAL = 30000;
+        const CLEANUP_INTERVAL = 10000;
+        const PLAY_BUFFER_TIME = 5000;
+        const PRELOAD_BUFFER_SECONDS = 7;
+
+        const TIER1_THRESHOLD = 300;
+        const TIER2_THRESHOLD = 800;
+        const TIER3_THRESHOLD = 1500;
+        const TIER2_LAGGING_SPEED = 1.05;
+        const TIER3_LAGGING_SPEED = 1.15;
+
+        const OWNER_PRESENCE_UPDATE_INTERVAL = 30000;
+        const OWNER_PRESENCE_TIMEOUT = 45000;
+        const DEBUG_MODE = false;
+
+        // ========================
+        // GLOBAL STATE
+        // ========================
+        let db, auth, currentUser, currentRoomId, currentRoomData;
+        let videoElement, isRoomOwner = false;
+        let clockOffset = 0;
+
+        // Memory leak prevention
+        const activeIntervals = [];
+        const activeTimeouts = [];
+        const firebaseListeners = [];
+        const videoEventListeners = [];
+        let abortControllers = {};
+
+        // Performance optimization
+        let lastDriftValue = null;
+        let lastFirebaseUpdate = 0;
+        let lastUIUpdate = 0;
+        let lastCommandSource = null;
+
+        // Sync mechanism
+        let syncState = null;
+        let countdownInterval = null;
+        let syncTimeoutId = null;
+        let lastSyncCheck = 0;
+
+        // Buffer countdown system
+        let bufferCountdownInterval = null;
+        let bufferTargetTime = null;
+        let isBuffering = false;
+
+        // Cached DOM elements
+        let cachedElements = {};
+
+        // Firebase batch updates
+        let pendingFirebaseUpdates = {};
+        let firebaseBatchTimeout = null;
+
+        // ========================
+        // FIREBASE INITIALIZATION
+        // ========================
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.database();
+        auth = firebase.auth();
+
+        // ========================
+        // HELPER FUNCTIONS
+        // ========================
+        function debugLog(...args) {
+            if (DEBUG_MODE) console.log(...args);
+        }
+
+        let rafQueue = [];
+        let rafScheduled = false;
+
+        function queueRAF(callback) {
+            rafQueue.push(callback);
+            if (!rafScheduled) {
+                rafScheduled = true;
+                requestAnimationFrame(() => {
+                    const callbacks = rafQueue.splice(0);
+                    rafScheduled = false;
+                    callbacks.forEach(cb => {
+                        try { cb(); }
+                        catch (e) { console.warn("RAF callback error", e); }
+                    });
+                });
+            }
+        }
+
+        function getServerTime() {
+            return Date.now() + clockOffset;
+        }
+
+        // DOM Element Caching
+        function getCachedElement(id) {
+            if (!cachedElements[id]) {
+                cachedElements[id] = document.getElementById(id);
+            }
+            return cachedElements[id];
+        }
+
+        function clearElementCache() {
+            cachedElements = {};
+        }
+
+        // ========================
+        // MEMORY LEAK PREVENTION
+        // ========================
+        function trackInterval(id) {
+            if (id) activeIntervals.push(id);
+            return id;
+        }
+
+        function trackTimeout(id) {
+            if (id) activeTimeouts.push(id);
+            return id;
+        }
+
+        function trackListener(ref) {
+            if (ref) firebaseListeners.push(ref);
+            return ref;
+        }
+
+        function clearAllIntervals() {
+            if (bufferCountdownInterval) clearInterval(bufferCountdownInterval);
+            bufferCountdownInterval = null;
+            activeIntervals.forEach(id => clearInterval(id));
+            activeIntervals.length = 0;
+        }
+
+        function clearAllTimeouts() {
+            activeTimeouts.forEach(id => clearTimeout(id));
+            activeTimeouts.length = 0;
+        }
+
+        function clearAllListeners() {
+            firebaseListeners.forEach(ref => {
+                try { ref.off(); }
+                catch (e) { console.warn("Listener cleanup error", e); }
+            });
+            firebaseListeners.length = 0;
+        }
+
+        function abortAllFetches() {
+            Object.values(abortControllers).forEach(ctrl => {
+                if (ctrl && ctrl.abort) ctrl.abort();
+            });
+            abortControllers = {};
+        }
+
+        function fullCleanup() {
+            // Flush pending Firebase updates first
+            if (firebaseBatchTimeout) {
+                clearTimeout(firebaseBatchTimeout);
+                flushFirebaseUpdates();
+            }
+
+            clearAllIntervals();
+            clearAllTimeouts();
+            clearAllListeners();
+            abortAllFetches();
+            clearElementCache();
+
+            // Remove from active viewers
+            if (currentRoomId && currentUser) {
+                db.ref(`rooms/${currentRoomId}/activeViewers/${currentUser.uid}`).remove().catch(() => {});
+            }
+
+            debugLog("Full cleanup completed");
+        }
+
+        // ========================
+        // FIREBASE BATCH UPDATES
+        // ========================
+        function queueFirebaseUpdate(path, value) {
+            pendingFirebaseUpdates[path] = value;
+            if (!firebaseBatchTimeout) {
+                firebaseBatchTimeout = setTimeout(flushFirebaseUpdates, 1000);
+            }
+        }
+
+        function flushFirebaseUpdates() {
+            if (Object.keys(pendingFirebaseUpdates).length === 0) {
+                firebaseBatchTimeout = null;
+                return;
+            }
+
+            if (currentRoomId) {
+                db.ref(`rooms/${currentRoomId}`).update(pendingFirebaseUpdates).catch(err => {
+                    console.warn("Batch update error", err);
+                });
+            }
+
+            pendingFirebaseUpdates = {};
+            firebaseBatchTimeout = null;
+        }
+
+        function shouldUpdateFirebase() {
+            const now = Date.now();
+            if (now - lastFirebaseUpdate < 5000) return false;
+            lastFirebaseUpdate = now;
+            return true;
+        }
+
+        function shouldUpdateUI() {
+            const now = Date.now();
+            if (now - lastUIUpdate < 300) return false;
+            lastUIUpdate = now;
+            return true;
+        }
+
+        // ========================
+        // CLOCK SYNC
+        // ========================
+        async function initClockSync() {
+            try {
+                const samples = [];
+                for (let i = 0; i < 3; i++) {
+                    const t0 = Date.now();
+                    const snapshot = await db.ref("info/serverTime").once("value");
+                    const offset = snapshot.val();
+                    const t1 = Date.now();
+                    const rtt = t1 - t0;
+                    const serverTime = Date.now() + offset;
+                    const calculatedOffset = serverTime - t0 - rtt / 2;
+                    samples.push(calculatedOffset);
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                clockOffset = samples.reduce((a, b) => a + b, 0) / samples.length;
+                debugLog("Clock offset", clockOffset, "ms");
+            } catch (error) {
+                console.warn("Clock sync error", error);
+            }
+        }
+
+        // ========================
+        // ROOM MANAGEMENT
+        // ========================
+        async function createRoom() {
+            const roomName = getCachedElement("room-name").value.trim();
+            const videoUrl = getCachedElement("video-url").value.trim();
+            const screenSize = getCachedElement("screen-size").value;
+            const environment = getCachedElement("environment").value;
+
+            if (!roomName || !videoUrl) {
+                alert("Lütfen oda adı ve video URL giriniz!");
+                return;
+            }
+
+            try {
+                const userCredential = await auth.signInAnonymously();
+                currentUser = userCredential.user;
+
+                const roomRef = db.ref("rooms").push();
+                currentRoomId = roomRef.key;
+
+                await roomRef.set({
+                    name: roomName,
+                    owner: currentUser.uid,
+                    videoUrl: videoUrl,
+                    screenSize: screenSize,
+                    environment: environment,
+                    createdAt: firebase.database.ServerValue.TIMESTAMP,
+                    videoState: { isPlaying: false, currentTime: 0, startTimestamp: 0, lastUpdate: 0 }
+                });
+
+                await joinRoom(currentRoomId);
+            } catch (error) {
+                console.error("Oda oluşturma hatası", error);
+                alert("Oda oluturulamadı: " + error.message);
+            }
+        }
+
+        async function joinRoom(roomId) {
+            try {
+                if (!auth.currentUser) {
+                    const userCredential = await auth.signInAnonymously();
+                    currentUser = userCredential.user;
+                } else {
+                    currentUser = auth.currentUser;
+                }
+
+                currentRoomId = roomId;
+                const roomSnapshot = await db.ref(`rooms/${roomId}`).once("value");
+                currentRoomData = roomSnapshot.val();
+
+                if (!currentRoomData) {
+                    alert("Oda bulunamadı!");
+                    return;
+                }
+
+                isRoomOwner = currentUser.uid === currentRoomData.owner;
+
+                // Add to active viewers
+                const viewerRef = db.ref(`rooms/${roomId}/activeViewers/${currentUser.uid}`);
+                await viewerRef.set({
+                    joinedAt: firebase.database.ServerValue.TIMESTAMP,
+                    lastSeen: firebase.database.ServerValue.TIMESTAMP,
+                    isOwner: isRoomOwner,
+                    currentDrift: 0
+                });
+
+                viewerRef.onDisconnect().remove();
+
+                await initClockSync();
+                await create3DScene();
+
+                getCachedElement("ui-overlay").classList.add("hidden");
+                getCachedElement("vr-controls").style.display = "flex";
+                getCachedElement("room-info").style.display = "block";
+                getCachedElement("sync-status").style.display = "block";
+
+                updateRoomInfoDisplay();
+                listenVideoState();
+                listenSyncState();
+
+                if (isRoomOwner) startOwnerTasks();
+                else listenKeyframes();
+
+                startPeriodicTasks();
+            } catch (error) {
+                console.error("Odaya katılma hatası", error);
+                alert("Odaya katılınamadı: " + error.message);
+            }
+        }
+
+        function leaveRoom() {
+            if (currentRoomId && currentUser) {
+                db.ref(`rooms/${currentRoomId}/activeViewers/${currentUser.uid}`).remove();
+            }
+
+            clearSyncState();
+            fullCleanup();
+
+            // Clean up video element properly
+            if (videoElement) {
+                videoElement.pause();
+                videoElement.removeAttribute("src");
+                videoElement.load();
+                videoElement.remove();
+                videoElement = null;
+            }
+
+            // Remove scene elements
+            const scene = document.querySelector("a-scene");
+            const videoScreen = document.getElementById("video-screen");
+            const vrPanel = document.getElementById("vr-panel");
+
+            if (videoScreen) {
+                const material = videoScreen.components.material;
+                if (material && material.material) {
+                    if (material.material.map) material.material.map.dispose();
+                    material.material.dispose();
+                }
+                videoScreen.remove();
+            }
+
+            if (vrPanel) vrPanel.remove();
+
+            getCachedElement("ui-overlay").classList.remove("hidden");
+            getCachedElement("vr-controls").style.display = "none";
+            getCachedElement("room-info").style.display = "none";
+            getCachedElement("sync-status").style.display = "none";
+
+            const bufferEl = getCachedElement("buffer-countdown");
+            if (bufferEl) bufferEl.style.display = "none";
+
+            isBuffering = false;
+            bufferTargetTime = null;
+            currentRoomId = null;
+            currentRoomData = null;
+            isRoomOwner = false;
+            lastDriftValue = null;
+        }
+
+        async function showRoomList() {
+            try {
+                if (!auth.currentUser) await auth.signInAnonymously();
+
+                const roomsSnapshot = await db.ref("rooms").limitToLast(20).once("value");
+                const roomList = getCachedElement("room-list");
+                roomList.innerHTML = "";
+
+                const rooms = [];
+                const roomsToDelete = [];
+
+                roomsSnapshot.forEach(child => {
+                    const roomData = child.val();
+                    const viewerCount = roomData.activeViewers ? Object.keys(roomData.activeViewers).length : 0;
+
+                    if (viewerCount === 0) {
+                        roomsToDelete.push(child.key);
+                    } else {
+                        rooms.push({ id: child.key, data: roomData, viewers: viewerCount });
+                    }
+                });
+
+                roomsToDelete.forEach(roomId => {
+                    db.ref(`rooms/${roomId}`).remove();
+                });
+
+                if (rooms.length === 0) {
+                    roomList.innerHTML = "<p style=\"text-align: center; opacity: 0.7;\">Aktif oda bulunamadı</p>";
+                } else {
+                    rooms.forEach(room => {
+                        const roomDiv = document.createElement("div");
+                        roomDiv.className = "room-item";
+                        roomDiv.innerHTML = `
+                            <div class="room-name">${room.data.name}</div>
+                            <div class="room-details">${room.viewers} izleyici</div>
+                        `;
+                        roomDiv.onclick = () => joinRoom(room.id);
+                        roomList.appendChild(roomDiv);
+                    });
+                }
+
+                getCachedElement("create-room-section").classList.add("hidden");
+                getCachedElement("room-list-section").classList.remove("hidden");
+            } catch (error) {
+                console.error("Oda listesi hatası", error);
+                alert("Odalar yüklenirken hata oluştu: " + error.message);
+            }
+        }
+
+        function showCreateRoom() {
+            getCachedElement("room-list-section").classList.add("hidden");
+            getCachedElement("create-room-section").classList.remove("hidden");
+        }
+
+        // ========================
+        // 3D SCENE CREATION
+        // ========================
+        async function create3DScene() {
+            const scene = document.querySelector("a-scene");
+
+            // Video element with AbortController for better cleanup
+            videoElement = document.createElement("video");
+            videoElement.id = "video-source";
+            videoElement.crossOrigin = "anonymous";
+            videoElement.setAttribute("playsinline", "");
+            videoElement.setAttribute("webkit-playsinline", "");
+            videoElement.setAttribute("preload", "auto");
+            videoElement.src = currentRoomData.videoUrl;
+
+            // Setup event listeners with proper cleanup
+            const handleCanPlay = () => debugLog("Video can play");
+            const handleLoadedMetadata = () => debugLog("Video metadata loaded", videoElement.duration);
+
+            videoElement.addEventListener("canplay", handleCanPlay);
+            videoElement.addEventListener("loadedmetadata", handleLoadedMetadata);
+
+            // Store listeners for cleanup
+            videoElement._listeners = [
+                { event: "canplay", handler: handleCanPlay },
+                { event: "loadedmetadata", handler: handleLoadedMetadata }
+            ];
+
+            if (isRoomOwner && currentRoomData.videoState && currentRoomData.videoState.isPlaying) {
+                videoElement.currentTime = currentRoomData.videoState.currentTime;
+                videoElement.play().catch(e => console.warn("Initial play failed", e));
+            }
+
+            // Setup video control listeners with cleanup handlers
+            const playListener = () => {
+                if (syncState) return;
+                if (currentRoomData.videoState && !currentRoomData.videoState.isPlaying) {
+                    syncVideoState();
+                }
+            };
+
+            const pauseListener = () => {
+                if (syncState) return;
+                if (currentRoomData.videoState && currentRoomData.videoState.isPlaying) {
+                    syncVideoState();
+                }
+            };
+
+            const seekedListener = () => {
+                if (syncState) return;
+                syncVideoState();
+            };
+
+            if (isRoomOwner) {
+                videoElement.addEventListener("play", playListener);
+                videoElement.addEventListener("pause", pauseListener);
+                videoElement.addEventListener("seeked", seekedListener);
+
+                // Store all listeners for cleanup
+                videoElement._listeners.push(
+                    { event: "play", handler: playListener },
+                    { event: "pause", handler: pauseListener },
+                    { event: "seeked", handler: seekedListener }
+                );
+            }
+
+            scene.querySelector("a-assets").appendChild(videoElement);
+
+            // Screen sizes configuration
+            const screenSizes = {
+                medium: { width: 8, height: 4.5 },
+                large: { width: 10, height: 4.76 },
+                imax: { width: 7, height: 10 }
+            };
+
+            const size = screenSizes[currentRoomData.screenSize] || screenSizes.medium;
+
+            // Video screen
+            const videoScreen = document.createElement("a-plane");
+            videoScreen.id = "video-screen";
+            videoScreen.setAttribute("position", "0 2 -5");
+            videoScreen.setAttribute("width", size.width);
+            videoScreen.setAttribute("height", size.height);
+            videoScreen.setAttribute("material", "src: #video-source; shader: flat");
+            scene.appendChild(videoScreen);
+
+            // VR control panel (simplified for owner only)
+            if (isRoomOwner) {
+                const panel = document.createElement("a-entity");
+                panel.id = "vr-panel";
+                panel.setAttribute("position", "0 1 -2");
+
+                const buttons = [
+                    { text: "▶", position: "-0.6 0 0", event: "play" },
+                    { text: "⏸", position: "-0.2 0 0", event: "pause" },
+                    { text: "⏪", position: "0.2 0 0", event: "rewind" },
+                    { text: "⏩", position: "0.6 0 0", event: "forward" }
+                ];
+
+                buttons.forEach(btn => {
+                    const button = document.createElement("a-text");
+                    button.setAttribute("value", btn.text);
+                    button.setAttribute("position", btn.position);
+                    button.setAttribute("align", "center");
+                    button.setAttribute("color", "#4ade80");
+                    button.setAttribute("width", "4");
+                    button.setAttribute("class", "clickable");
+                    button.addEventListener("click", () => handleVRButton(btn.event));
+                    panel.appendChild(button);
+                });
+
+                scene.appendChild(panel);
+            }
+        }
+
+        function handleVRButton(action) {
+            switch (action) {
+                case "play": playVideo(); break;
+                case "pause": pauseVideo(); break;
+                case "rewind": seekBackward(); break;
+                case "forward": seekForward(); break;
+            }
+        }
+
+        // ========================
+        // VIDEO CONTROLS
+        // ========================
+        function playVideo() {
+            if (!videoElement) return;
+
+            if (syncState && syncState.isBuffering) {
+                if (!isRoomOwner) return;
+                startSyncCountdown();
+                return;
+            }
+
+            if (!isRoomOwner) return;
+
+            lastCommandSource = "self";
+            const serverTime = getServerTime();
+
+            videoElement.play().then(() => {
+                db.ref(`rooms/${currentRoomId}/videoState`).update({
+                    isPlaying: true,
+                    currentTime: videoElement.currentTime,
+                    startTimestamp: serverTime,
+                    lastUpdate: firebase.database.ServerValue.TIMESTAMP
+                });
+
+                setTimeout(() => { lastCommandSource = null; }, 500);
+            }).catch(error => {
+                console.warn("Play error", error);
+                lastCommandSource = null;
+                setTimeout(() => { videoElement.play().catch(() => {}); }, 500);
+            });
+        }
+
+        function pauseVideo() {
+            if (!isRoomOwner || !videoElement) return;
+
+            lastCommandSource = "self";
+            videoElement.pause();
+
+            db.ref(`rooms/${currentRoomId}/videoState`).update({
+                isPlaying: false,
+                currentTime: videoElement.currentTime,
+                lastUpdate: firebase.database.ServerValue.TIMESTAMP
+            });
+
+            setTimeout(() => { lastCommandSource = null; }, 500);
+        }
+
+        function seekBackward() {
+            if (!isRoomOwner || !videoElement) return;
+            videoElement.currentTime = Math.max(0, videoElement.currentTime - 10);
+            syncVideoState();
+        }
+
+        function seekForward() {
+            if (!isRoomOwner || !videoElement) return;
+            videoElement.currentTime = Math.min(videoElement.duration, videoElement.currentTime + 10);
+            syncVideoState();
+        }
+
+        // ========================
+        // SYNC MECHANISM - DELTA SYNC
+        // ========================
+        let syncModeActive = false;
+        let lastSyncedPosition = null;
+
+        async function initiateSync() {
+            if (!currentRoomId || !videoElement) return;
+
+            debugLog("Sync initiated by user");
+
+            const syncBtn = getCachedElement("btn-sync");
+            if (syncBtn) syncBtn.disabled = true;
+
+            try {
+                const snapshot = await db.ref(`rooms/${currentRoomId}/activeViewers`).once("value");
+                const viewers = snapshot.val();
+
+                if (!viewers) {
+                    if (syncBtn) syncBtn.disabled = false;
+                    return;
+                }
+
+                const positions = [videoElement.currentTime];
+
+                Object.keys(viewers).forEach(uid => {
+                    if (uid !== currentUser.uid && viewers[uid].currentPosition !== undefined) {
+                        positions.push(viewers[uid].currentPosition);
+                    }
+                });
+
+                const minPosition = Math.min(...positions);
+                const targetPosition = Math.max(0, minPosition - 4);
+
+                debugLog("Positions", positions, "Target", targetPosition);
+
+                // DELTA SYNC: Only sync if difference > 1 second
+                const currentPos = videoElement.currentTime;
+                if (Math.abs(currentPos - targetPosition) > 1) {
+                    await db.ref(`rooms/${currentRoomId}/syncState`).set({
+                        isBuffering: true,
+                        syncedSeekPosition: targetPosition,
+                        syncedPlayTime: null,
+                        initiatedBy: currentUser.uid,
+                        initiatedAt: firebase.database.ServerValue.TIMESTAMP
+                    });
+
+                    applySyncState({
+                        isBuffering: true,
+                        syncedSeekPosition: targetPosition,
+                        syncedPlayTime: null
+                    });
+                }
+
+                if (syncBtn) syncBtn.disabled = false;
+            } catch (error) {
+                console.error("Sync error", error);
+                if (syncBtn) syncBtn.disabled = false;
+            }
+        }
+
+        function applySyncState(state) {
+            if (!videoElement || !state) return;
+
+            syncState = state;
+            syncModeActive = true;
+
+            if (state.isBuffering) {
+                videoElement.pause();
+                videoElement.currentTime = state.syncedSeekPosition;
+                lastSyncedPosition = state.syncedSeekPosition;
+                updateSyncUI("Senkronizasyon başlatıldı...");
+
+                setTimeout(() => {
+                    updateSyncUI(`Video ${state.syncedSeekPosition.toFixed(1)}s'de duraklatıldı`);
+                }, 500);
+
+                setTimeout(() => {
+                    if (isRoomOwner) {
+                        updateSyncUI("Hazır olduğunuzda OYNAT butonuna basın");
+                    } else {
+                        updateSyncUI("Oda sahibinin oynatmasını bekliyoruz...");
+                    }
+                }, 1000);
+
+                updateControlsForSync(true);
+
+                if (isRoomOwner) {
+                    syncTimeoutId = setTimeout(() => {
+                        debugLog("Sync timeout - auto starting countdown");
+                        startSyncCountdown();
+                    }, 30000);
+                }
+            } else if (state.syncedPlayTime) {
+                startSyncCountdownFromState(state);
+            }
+        }
+
+        function startSyncCountdown() {
+            if (!isRoomOwner || !syncState) return;
+
+            if (syncTimeoutId) {
+                clearTimeout(syncTimeoutId);
+                syncTimeoutId = null;
+            }
+
+            const playTime = Date.now() + 5000; // 5 seconds from now
+
+            db.ref(`rooms/${currentRoomId}/syncState`).update({
+                isBuffering: false,
+                syncedPlayTime: playTime
+            });
+        }
+
+        function startSyncCountdownFromState(state) {
+            if (!state.syncedPlayTime) return;
+
+            const playTime = state.syncedPlayTime;
+            const now = Date.now();
+
+            if (playTime <= now) {
+                setTimeout(() => executeSync(state), 100);
+                return;
+            }
+
+            const countdownElement = getCachedElement("sync-countdown");
+            if (countdownElement) {
+                countdownElement.style.display = "block";
+            }
+
+            if (countdownInterval) clearInterval(countdownInterval);
+
+            countdownInterval = setInterval(() => {
+                const remaining = playTime - Date.now();
+
+                if (remaining <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    executeSync(state);
+                } else {
+                    const seconds = Math.ceil(remaining / 1000);
+                    if (countdownElement) {
+                        countdownElement.textContent = `${seconds} saniye sonra başlıyor...`;
+                    }
+                    updateSyncUI(`${seconds} saniye sonra oynatılacak...`);
+                }
+            }, 100);
+        }
+
+        function executeSync(state) {
+            if (!videoElement || !state) return;
+
+            debugLog("Executing sync at", Date.now());
+
+            videoElement.currentTime = state.syncedSeekPosition;
+            videoElement.playbackRate = 1.0;
+
+            videoElement.play().then(() => {
+                debugLog("Sync play successful");
+
+                syncModeActive = false;
+
+                if (isRoomOwner) {
+                    const serverTime = getServerTime();
+                    db.ref(`rooms/${currentRoomId}/videoState`).update({
+                        isPlaying: true,
+                        currentTime: state.syncedSeekPosition,
+                        startTimestamp: serverTime,
+                        lastUpdate: firebase.database.ServerValue.TIMESTAMP
+                    });
+
+                    setTimeout(() => { clearSyncState(); }, 500);
+                } else {
+                    setTimeout(() => { clearSyncState(); }, 1000);
+                }
+            }).catch(error => {
+                console.error("Sync play error", error);
+                setTimeout(() => { clearSyncState(); }, 500);
+            });
+        }
+
+        function clearSyncState() {
+            syncState = null;
+            syncModeActive = false;
+
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+
+            if (syncTimeoutId) {
+                clearTimeout(syncTimeoutId);
+                syncTimeoutId = null;
+            }
+
+            const countdownElement = getCachedElement("sync-countdown");
+            if (countdownElement) {
+                countdownElement.style.display = "none";
+                countdownElement.textContent = "";
+            }
+
+            updateControlsForSync(false);
+
+            if (isRoomOwner && currentRoomId) {
+                db.ref(`rooms/${currentRoomId}/syncState`).remove().catch(() => {});
+            }
+
+            debugLog("Sync state cleared");
+        }
+
+        function updateSyncUI(message) {
+            const statusText = getCachedElement("sync-text");
+            if (statusText) {
+                statusText.textContent = message;
+                statusText.className = "status-warning";
+            }
+        }
+
+        function updateControlsForSync(inSync) {
+            const playBtn = getCachedElement("btn-play");
+            const pauseBtn = getCachedElement("btn-pause");
+            const rewindBtn = getCachedElement("btn-rewind");
+            const forwardBtn = getCachedElement("btn-forward");
+            const syncBtn = getCachedElement("btn-sync");
+
+            if (inSync) {
+                if (pauseBtn) pauseBtn.disabled = true;
+                if (rewindBtn) rewindBtn.disabled = true;
+                if (forwardBtn) forwardBtn.disabled = true;
+                if (syncBtn) syncBtn.disabled = true;
+                if (playBtn) playBtn.disabled = !isRoomOwner;
+            } else {
+                if (isRoomOwner) {
+                    if (playBtn) playBtn.disabled = false;
+                    if (pauseBtn) pauseBtn.disabled = false;
+                    if (rewindBtn) rewindBtn.disabled = false;
+                    if (forwardBtn) forwardBtn.disabled = false;
+                    if (syncBtn) syncBtn.disabled = false;
+                }
+            }
+        }
+
+        // ========================
+        // LISTENERS
+        // ========================
+        function listenSyncState() {
+            const ref = db.ref(`rooms/${currentRoomId}/syncState`);
+            trackListener(ref);
+
+            ref.on("value", snapshot => {
+                const state = snapshot.val();
+                if (state) {
+                    applySyncState(state);
+                } else {
+                    if (syncState) clearSyncState();
+                }
+            });
+        }
+
+        function updateViewerPosition() {
+            if (!currentUser || !currentRoomId || !videoElement) return;
+
+            try {
+                db.ref(`rooms/${currentRoomId}/activeViewers/${currentUser.uid}/currentPosition`).set(videoElement.currentTime).catch(() => {});
+            } catch (error) {
+                console.warn("Position update error", error);
+            }
+        }
+
+        function syncVideoState() {
+            if (!isRoomOwner || !videoElement) return;
+
+            const serverTime = getServerTime();
+            db.ref(`rooms/${currentRoomId}/videoState`).update({
+                isPlaying: !videoElement.paused,
+                currentTime: videoElement.currentTime,
+                startTimestamp: serverTime,
+                lastUpdate: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
+
+        let lastVideoStateUpdate = 0;
+        let previousVideoState = null;
+
+        function listenVideoState() {
+            const ref = db.ref(`rooms/${currentRoomId}/videoState`);
+            trackListener(ref);
+
+            ref.on("value", snapshot => {
+                const newState = snapshot.val();
+                if (!newState) return;
+
+                // Ignore updates during sync execution
+                if (syncModeActive) {
+                    debugLog("Ignoring video state update - sync mode active");
+                    return;
+                }
+
+                // Ignore self-triggered updates
+                if (lastCommandSource === "self") {
+                    debugLog("Ignoring self-triggered video state update");
+                    return;
+                }
+
+                // Check if state actually changed
+                if (previousVideoState &&
+                    previousVideoState.isPlaying === newState.isPlaying &&
+                    Math.abs(previousVideoState.currentTime - newState.currentTime) < 0.1 &&
+                    previousVideoState.startTimestamp === newState.startTimestamp) {
+                    return;
+                }
+
+                previousVideoState = JSON.parse(JSON.stringify(newState));
+                currentRoomData.videoState = newState;
+
+                if (!isRoomOwner) {
+                    const now = Date.now();
+                    if (now - lastVideoStateUpdate > SYNC_CHECK_INTERVAL) {
+                        lastVideoStateUpdate = now;
+                        syncVideo();
+                    }
+                }
+            });
+        }
+
+        function syncVideo() {
+            if (!videoElement || !currentRoomData || !currentRoomData.videoState) return;
+
+            // Don't sync if in sync mode
+            if (syncState) return;
+
+            const state = currentRoomData.videoState;
+            const serverTime = getServerTime();
+            let expectedTime = state.currentTime;
+
+            if (state.isPlaying) {
+                const elapsed = (serverTime - state.startTimestamp) / 1000;
+                expectedTime = state.currentTime + elapsed;
+            }
+
+            const currentTime = videoElement.currentTime;
+            const drift = Math.abs(currentTime - expectedTime) * 1000;
+
+            debugLog("Sync - Expected", expectedTime, "Current", currentTime, "Drift", drift);
+
+            // DELTA SYNC: Only apply sync if drift > TIER1_THRESHOLD
+            if (drift > TIER1_THRESHOLD) {
+                if (drift < TIER2_THRESHOLD) {
+                    if (state.isPlaying) {
+                        if (videoElement.paused) videoElement.play().catch(() => {});
+                        const behind = currentTime < expectedTime;
+                        videoElement.playbackRate = behind ? TIER2_LAGGING_SPEED : 0.95;
+                    } else {
+                        videoElement.pause();
+                        videoElement.playbackRate = 1.0;
+                    }
+                } else if (drift < TIER3_THRESHOLD) {
+                    if (state.isPlaying) {
+                        if (videoElement.paused) videoElement.play().catch(() => {});
+                        const behind = currentTime < expectedTime;
+                        videoElement.playbackRate = behind ? TIER3_LAGGING_SPEED : 0.90;
+                    } else {
+                        videoElement.pause();
+                        videoElement.playbackRate = 1.0;
+                    }
+                } else {
+                    // Large drift - Buffer-Wait Strategy
+                    debugLog("Large drift detected", drift, "ms");
+
+                    if (isBuffering) return;
+
+                    isBuffering = true;
+                    const BUFFER_ADVANCE = 7;
+                    const targetSeek = expectedTime + BUFFER_ADVANCE;
+
+                    videoElement.currentTime = targetSeek;
+                    videoElement.pause();
+
+                    bufferTargetTime = Date.now() + (BUFFER_ADVANCE * 1000);
+
+                    const countdownEl = getCachedElement("buffer-countdown");
+                    if (countdownEl) {
+                        countdownEl.style.display = "block";
+                    }
+
+                    if (bufferCountdownInterval) clearInterval(bufferCountdownInterval);
+
+                    bufferCountdownInterval = setInterval(() => {
+                        const remaining = Math.max(0, bufferTargetTime - Date.now());
+                        const seconds = Math.ceil(remaining / 1000);
+
+                        if (countdownEl) {
+                            countdownEl.textContent = `${seconds}s`;
+                        }
+
+                        if (remaining <= 0) {
+                            clearInterval(bufferCountdownInterval);
+                            bufferCountdownInterval = null;
+                            isBuffering = false;
+
+                            if (countdownEl) {
+                                countdownEl.style.display = "none";
+                            }
+
+                            if (state.isPlaying) {
+                                videoElement.play().catch(() => {});
+                                videoElement.playbackRate = 1.0;
+                            }
+
+                            debugLog("Buffer complete - auto-started");
+                        }
+                    }, 100);
+                }
+            } else if (state.isPlaying && videoElement.paused) {
+                videoElement.play().catch(() => {});
+                videoElement.playbackRate = 1.0;
+            } else if (!state.isPlaying && !videoElement.paused) {
+                videoElement.pause();
+                videoElement.playbackRate = 1.0;
+            }
+
+            updateSyncStatus(drift);
+        }
+
+        function sendKeyframe() {
+            if (!videoElement || !isRoomOwner) return;
+
+            try {
+                const ref = db.ref(`rooms/${currentRoomId}/keyframes`).push({
+                    time: videoElement.currentTime,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+
+                trackTimeout(setTimeout(() => {
+                    ref.remove().catch(() => {});
+                }, 30000));
+            } catch (error) {
+                console.warn("Keyframe send error", error);
+            }
+        }
+
+        function listenKeyframes() {
+            const ref = db.ref(`rooms/${currentRoomId}/keyframes`).limitToLast(1);
+            trackListener(ref);
+
+            ref.on("child_added", snapshot => {
+                const keyframe = snapshot.val();
+                if (!videoElement) return;
+
+                const drift = Math.abs(videoElement.currentTime - keyframe.time) * 1000;
+
+                if (drift > TIER3_THRESHOLD) {
+                    videoElement.currentTime = keyframe.time;
+                    debugLog("Keyframe sync", keyframe.time);
+                }
+            });
+        }
+
+        function trackDrift() {
+            if (!videoElement || !currentRoomData || !currentRoomData.videoState) return;
+
+            try {
+                const state = currentRoomData.videoState;
+                const serverTime = getServerTime();
+                const expectedTime = state.isPlaying ? state.currentTime + (serverTime - state.startTimestamp) / 1000 : state.currentTime;
+                const drift = (videoElement.currentTime - expectedTime) * 1000;
+
+                if (lastDriftValue === null || Math.abs(drift - lastDriftValue) > 1000) {
+                    if (shouldUpdateFirebase()) {
+                        queueFirebaseUpdate(`activeViewers/${currentUser.uid}/currentDrift`, drift);
+                        lastDriftValue = drift;
+                    }
+                }
+            } catch (error) {
+                console.warn("Drift tracking error", error);
+            }
+        }
+
+        function updatePresence() {
+            if (!currentUser || !currentRoomId) return;
+
+            try {
+                queueFirebaseUpdate(`activeViewers/${currentUser.uid}/lastSeen`, firebase.database.ServerValue.TIMESTAMP);
+            } catch (error) {
+                console.warn("Presence update error", error);
+            }
+        }
+
+        function checkOwnerPresence() {
+            if (!isRoomOwner || !currentRoomData || !currentUser) return;
+
+            db.ref(`rooms/${currentRoomId}/activeViewers/${currentRoomData.owner}`).once("value").then(snapshot => {
+                const ownerData = snapshot.val();
+
+                if (!ownerData || Date.now() - ownerData.lastSeen > OWNER_PRESENCE_TIMEOUT) {
+                    db.ref(`rooms/${currentRoomId}/activeViewers`).once("value").then(viewersSnapshot => {
+                        const viewers = viewersSnapshot.val();
+
+                        if (viewers) {
+                            const newOwner = Object.keys(viewers)[0];
+
+                            if (newOwner && newOwner !== currentUser.uid) {
+                                db.ref(`rooms/${currentRoomId}`).update({ owner: newOwner });
+                                isRoomOwner = true;
+                                debugLog("Ownership transferred to you");
+                            }
+                        }
+                    }).catch(() => {});
+                }
+            }).catch(() => {});
+        }
+
+        // ========================
+        // UI UPDATES
+        // ========================
+        function updateRoomInfoDisplay() {
+            if (!currentRoomData) return;
+
+            getCachedElement("room-name-display").textContent = currentRoomData.name;
+            updateViewerCount();
+        }
+
+        function updateViewerCount() {
+            if (!currentRoomId || !shouldUpdateUI()) return;
+
+            db.ref(`rooms/${currentRoomId}/activeViewers`).once("value").then(snapshot => {
+                const count = snapshot.numChildren;
+
+                queueRAF(() => {
+                    const viewerElement = getCachedElement("viewer-count");
+                    if (viewerElement) {
+                        viewerElement.textContent = `${count} izleyici`;
+                    }
+                });
+            }).catch(() => {});
+        }
+
+        function cleanupOldData() {
+            if (!currentRoomId || !isRoomOwner) return;
+
+            try {
+                const cutoffTime = Date.now() - 60000;
+
+                // Clean old keyframes
+                db.ref(`rooms/${currentRoomId}/keyframes`).once("value").then(snapshot => {
+                    if (snapshot.exists()) {
+                        snapshot.forEach(child => {
+                            const data = child.val();
+                            if (data.timestamp && data.timestamp < cutoffTime) {
+                                child.ref.remove().catch(() => {});
+                            }
+                        });
+                    }
+                }).catch(() => {});
+
+                // Clean inactive viewers
+                db.ref(`rooms/${currentRoomId}/activeViewers`).once("value").then(snapshot => {
+                    if (snapshot.exists()) {
+                        snapshot.forEach(child => {
+                            const viewer = child.val();
+                            if (viewer.lastSeen && Date.now() - viewer.lastSeen > 60000) {
+                                child.ref.remove().catch(() => {});
+                            }
+                        });
+                    }
+                }).catch(() => {});
+
+                debugLog("Cleanup old data");
+            } catch (error) {
+                console.warn("Cleanup error", error);
+            }
+        }
+
+        function updateSyncStatus(drift) {
+            if (!shouldUpdateUI()) return;
+
+            queueRAF(() => {
+                const statusText = getCachedElement("sync-text");
+                if (!statusText) return;
+
+                if (drift < TIER1_THRESHOLD) {
+                    statusText.textContent = "Senkronize ✓";
+                    statusText.className = "status-good";
+                } else if (drift < TIER2_THRESHOLD) {
+                    statusText.textContent = "Hafif sapma";
+                    statusText.className = "status-warning";
+                } else {
+                    statusText.textContent = "Senkronizasyon kaybı";
+                    statusText.className = "status-error";
+                }
+            });
+        }
+
+        // ========================
+        // PERIODIC TASKS
+        // ========================
+        function startPeriodicTasks() {
+            trackInterval(setInterval(initClockSync, CLOCK_SYNC_INTERVAL));
+            trackInterval(setInterval(trackDrift, DRIFT_UPDATE_INTERVAL));
+            trackInterval(setInterval(updatePresence, PRESENCE_UPDATE_INTERVAL));
+            trackInterval(setInterval(updateViewerCount, 5000));
+            trackInterval(setInterval(updateViewerPosition, 3000));
+
+            if (!isRoomOwner) {
+                trackInterval(setInterval(checkOwnerPresence, OWNER_PRESENCE_UPDATE_INTERVAL));
+            }
+
+            debugLog("Periodic tasks started");
+        }
+
+        function startOwnerTasks() {
+            trackInterval(setInterval(sendKeyframe, KEYFRAME_INTERVAL));
+            trackInterval(setInterval(cleanupOldData, CLEANUP_INTERVAL));
+
+            debugLog("Owner tasks started");
+        }
+
+        // ========================
+        // INITIALIZATION
+        // ========================
+        document.addEventListener("DOMContentLoaded", () => {
+            console.log("VR Cinema ULTRA - Optimized v2.0 Ready!");
+
+            // VR mode handlers
+            const scene = document.querySelector("a-scene");
+            if (scene) {
+                scene.addEventListener("enter-vr", () => {
+                    const cursor = getCachedElement("vr-cursor");
+                    if (cursor) cursor.setAttribute("visible", "true");
+                    debugLog("VR mode: Raycaster enabled");
+                });
+
+                scene.addEventListener("exit-vr", () => {
+                    const cursor = getCachedElement("vr-cursor");
+                    if (cursor) cursor.setAttribute("visible", "false");
+                    debugLog("VR mode exit: Raycaster disabled");
+                });
+            }
+
+            // Keyboard shortcuts
+            document.addEventListener("keydown", e => {
+                if (!currentRoomId || !isRoomOwner) return;
+
+                switch (e.key) {
+                    case " ":
+                        e.preventDefault();
+                        if (videoElement) {
+                            if (videoElement.paused) playVideo();
+                            else pauseVideo();
+                        }
+                        break;
+                    case "ArrowLeft":
+                        e.preventDefault();
+                        seekBackward();
+                        break;
+                    case "ArrowRight":
+                        e.preventDefault();
+                        seekForward();
+                        break;
+                }
+            });
+
+            // Cleanup on page unload
+            window.addEventListener("beforeunload", fullCleanup);
+        });
+    </script>
+</body>
+</html>

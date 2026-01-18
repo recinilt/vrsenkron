@@ -1,0 +1,1205 @@
+{
+  "project_name": "VR Cinema ULTRA - Multiplayer Video Synchronization System",
+  "version": "7.0",
+  "description": "WebRTC tabanlı VR sinema platformu - Gerçek zamanlı video senkronizasyonu, multi-kullanıcı desteği, VR/2D/Mobil uyumlu",
+  
+  "core_architecture": {
+    "type": "Real-time Multiplayer VR Application",
+    "paradigm": "Client-Server with Firebase Realtime Database",
+    "rendering": "A-Frame (WebGL/VR)",
+    "sync_mechanism": "Server-time based synchronization with drift compensation",
+    
+    "key_components": [
+      "Firebase Realtime Database - State management & synchronization",
+      "A-Frame 1.6.0 - VR/3D rendering engine",
+      "Custom sync algorithm - Multi-tier drift correction",
+      "WebRTC video streaming - Cross-platform support",
+      "Owner Presence System - Automatic ownership transfer"
+    ]
+  },
+  
+  "file_structure": {
+    "index.html": {
+      "purpose": "Ana HTML yapısı ve UI overlay",
+      "key_elements": [
+        "UI overlay (oda oluşturma/listeleme)",
+        "A-Frame 3D sahne container",
+        "VR kontrol paneli (2D)",
+        "Oda bilgi göstergesi",
+        "Senkronizasyon status bildirimi"
+      ],
+      "libraries": [
+        "Firebase 9.22.0 (app, database, auth)",
+        "A-Frame 1.6.0",
+        "A-Frame Environment Component 1.3.7"
+      ]
+    },
+    
+    "config.js": {
+      "purpose": "Tüm konfigürasyon sabitleri ve global değişkenler",
+      "critical_constants": {
+        "SYNC_TIMING": {
+          "SYNCDELAY": "5000ms - Ana senkronizasyon döngüsü",
+          "KEYFRAMEINTERVAL": "7000ms - Keyframe gönderim aralığı",
+          "CLOCKSYNCINTERVAL": "60000ms - Sunucu saat senkronizasyonu",
+          "SEEKDEBOUNCEDELAY": "2000ms - Seek debounce",
+          "DRIFTUPDATEINTERVAL": "5000ms - Drift rapor aralığı"
+        },
+        
+        "SYNC_BUFFERS": {
+          "PAUSE_REWIND_BUFFER": "4s - Pause sırasında geri sarma",
+          "PLAY_BUFFER_TIME": "5000ms - Play için buffer süresi",
+          "PRELOADBUFFERSECONDS": "7s - Preload buffer miktarı",
+          "POSITION_REPORT_TIMEOUT": "1000ms - Pozisyon rapor bekleme"
+        },
+        
+        "DRIFT_CORRECTION": {
+          "TIER1THRESHOLD": "3000ms - Minimal düzeltme eşiği",
+          "TIER2THRESHOLD": "7000ms - Hız ayarlama eşiği",
+          "TIER3THRESHOLD": "15000ms - Seek gereksinimi eşiği",
+          "TIERCRITICALTHRESHOLD": "20000ms - Kritik desenkronizasyon",
+          "TIER2LAGGINGSPEED": "1.1x - Hafif hızlandırma",
+          "TIER3GROUPSPEED": "0.88x - Grup yavaşlatma",
+          "TIER3LAGGINGSPEED": "1.25x - Agresif yakalama"
+        },
+        
+        "OWNER_PRESENCE": {
+          "OWNERPRESENCEUPDATEINTERVAL": "5000ms - Heartbeat aralığı",
+          "OWNERPRESENCECHECKINTERVAL": "10000ms - Kontrol aralığı",
+          "OWNERPRESENCETIMEOUT": "15000ms - Timeout süresi"
+        }
+      },
+      
+      "video_services": {
+        "youtube": {
+          "pattern": "/(youtu\\.be|youtube\\.com\\/watch\\?v=|\\/embed\\/|\\/v\\/|\\/shorts\\/)([a-zA-Z0-9-]{11})/",
+          "transform": "Embed URL'e dönüştürme",
+          "example": "https://www.youtube.com/watch?v=xxx → https://www.youtube.com/embed/xxx?autoplay=1"
+        },
+        "googledrive": {
+          "pattern": "/drive\\.google\\.com.*?[?&]?(file\\/d\\/|open\\?id=)([a-zA-Z0-9-]+)/",
+          "transform": "Cloudflare Worker proxy üzerinden direct link",
+          "example": "Google Drive ID'den download linki oluşturma"
+        },
+        "direct": {
+          "pattern": "/\\.(mp4|webm|ogg|mov|mkv|m3u8|ts)(\\?.*)?$/i",
+          "transform": "Direkt kullanım"
+        }
+      },
+      
+      "environments": {
+        "none": "Ortamsız (siyah arka plan)",
+        "default": "Klasik A-Frame ortamı",
+        "forest": "Orman ortamı",
+        "starry": "Yıldızlı gece"
+      }
+    },
+    
+    "core1.js": {
+      "purpose": "Temel sistem fonksiyonları - Clock sync, presence, room join",
+      
+      "clock_synchronization": {
+        "algorithm": "RTT (Round Trip Time) based offset calculation",
+        "implementation": "3 örneklem ortalaması",
+        "steps": [
+          "1. Client timestamp (t0) kaydet",
+          "2. Firebase ServerValue.TIMESTAMP yaz",
+          "3. Server timestamp oku",
+          "4. Client timestamp (t1) kaydet",
+          "5. RTT = t1 - t0",
+          "6. offset = serverTime - (t0 + RTT/2)",
+          "7. 3 örneklem ortalaması al → clockOffset"
+        ],
+        "refresh_rate": "60 saniyede bir",
+        "precision": "±50ms tipik, ±100ms maksimum"
+      },
+      
+      "owner_presence_system": {
+        "purpose": "Oda sahibinin aktif olduğunu izleme ve otomatik ownership transfer",
+        "mechanism": "Firebase onDisconnect + lastSeen timestamp",
+        "heartbeat": "5 saniyede bir activeViewers/[uid]/lastSeen güncelleme",
+        "monitoring": "10 saniyede bir owner kontrolü",
+        "timeout": "15 saniye cevap yoksa transfer",
+        "transfer_logic": "Firebase transaction ile atomic ownership değişimi"
+      },
+      
+      "preload_waiting": {
+        "purpose": "Geride kalan izleyicilerin owner'a yetişmesini bekletme",
+        "trigger": "Play komutu öncesi buffer dolması için",
+        "polling": "500ms'de bir owner pozisyonu kontrol",
+        "max_wait": "30 saniye (PRELOADWAITINGTIMEOUT)",
+        "mechanism": [
+          "1. videoElement.currentTime = targetTime - PRELOADBUFFERSECONDS",
+          "2. videoElement.pause() (buffer dolsun)",
+          "3. 500ms polling ile owner pozisyonu izle",
+          "4. Owner hedefe ulaştı mı? → videoElement.play()",
+          "5. 30 saniye timeout → zorla play"
+        ]
+      },
+      
+      "room_join_flow": {
+        "steps": [
+          "1. Firebase auth (anonim giriş)",
+          "2. Room snapshot al (validation)",
+          "3. isRoomOwner = (currentUser.uid === room.owner)",
+          "4. activeViewers/[uid] yaz (timestamp, isOwner, drift=0)",
+          "5. onDisconnect().remove() ayarla",
+          "6. initClockSync() çalıştır",
+          "7. create3DScene() - Video + environment setup",
+          "8. listenVideoState() - Realtime sync başlat",
+          "9. isRoomOwner ? startKeyframeSending() : listenKeyframes()",
+          "10. startDriftTracking() - Her kullanıcı için",
+          "11. setupOwnerPresence() - Heartbeat başlat"
+        ]
+      },
+      
+      "interval_tracking": {
+        "purpose": "Memory leak önleme",
+        "mechanism": "Set-based interval tracking",
+        "functions": [
+          "trackInterval(id) - Yeni interval kaydet",
+          "clearTrackedInterval(id) - Tek interval temizle",
+          "clearAllIntervals() - Tüm intervalları temizle (room exit)"
+        ]
+      }
+    },
+    
+    "core2.js": {
+      "purpose": "3D sahne, video kontrolleri, drift tracking",
+      
+      "scene_creation": {
+        "video_element_setup": [
+          "1. <video> elementi oluştur (crossorigin='anonymous', playsinline)",
+          "2. <a-assets> içine ekle",
+          "3. <a-video> entity oluştur (#video-screen)",
+          "4. src='#video-player' bağla",
+          "5. Boyut ayarla (small/medium/large/huge)",
+          "6. Pozisyon ayarla (screenPosition: x:0, y:2, z:-10)"
+        ],
+        
+        "environment_setup": {
+          "a-frame_component": "environment component kullanımı",
+          "preset_values": ["none", "default", "forest", "starry"],
+          "implementation": "<a-entity environment='preset: X'>"
+        },
+        
+        "screen_sizes": {
+          "small": "8x4.5 (16:9)",
+          "medium": "12x6.75 (16:9)",
+          "large": "16x9 (16:9)",
+          "huge": "20x11.25 (16:9)"
+        }
+      },
+      
+      "subtitle_system": {
+        "format": "SRT (SubRip Text)",
+        "parser": "Regex-based extraction",
+        "regex": "(\\d{2}:\\d{2}:\\d{2},\\d{3}) --> (\\d{2}:\\d{2}:\\d{2},\\d{3})\\n([\\s\\S]*?)(?=\\n\\n|\\n*$)",
+        "structure": "Array of {start, end, text}",
+        "rendering": "<a-text> positioned at (0, -2, -8)",
+        "update_frequency": "Video timeupdate event ile"
+      },
+      
+      "drift_tracking_v7": {
+        "purpose": "Her kullanıcının senkronizasyon sapmasını izleme",
+        "interval": "5000ms (optimized from 2000ms)",
+        "calculation": "(videoElement.currentTime - expectedTime) * 1000 ms",
+        "threshold": "±1000ms değişim varsa güncelle",
+        "firebase_write": "activeViewers/[uid]/currentDrift",
+        "optimization": "Değer değişmediyse Firebase'e yazma (write reduction)"
+      },
+      
+      "video_controls_v7": {
+        "playVideo": {
+          "flow_owner": [
+            "1. cancelPendingOperations() - Önceki işlemleri iptal",
+            "2. markOldUpdatesAsProcessed() - Eski güncelleri temizle",
+            "3. startTimestamp = getServerTime() + PLAY_BUFFER_TIME",
+            "4. preloadTime = currentTime - PRELOADBUFFERSECONDS",
+            "5. videoElement.currentTime = preloadTime",
+            "6. videoElement.pause() (buffer dolsun)",
+            "7. Firebase videoState update (isPlaying:true, startTimestamp)",
+            "8. urgentUpdates/push({action:'play', startTimestamp, currentTime})",
+            "9. startPreloadWaiting(actualStartTime) - Buffer izle",
+            "10. Timeout → videoElement.play()"
+          ],
+          "flow_viewer": "requestVideoControl('play') - Owner'a istek gönder"
+        },
+        
+        "pauseVideo_v7_enhanced": {
+          "purpose": "Tüm izleyicilerin pozisyonunu toplayıp minimum'a seek",
+          "flow_owner": [
+            "1. cancelPendingOperations()",
+            "2. markOldUpdatesAsProcessed()",
+            "3. urgentUpdates/push({action:'reportPosition'})",
+            "4. Kendi pozisyonu yaz: activeViewers/[uid]/pausePosition",
+            "5. POSITION_REPORT_TIMEOUT (1000ms) bekle",
+            "6. activeViewers snapshot al",
+            "7. Tüm pausePosition değerlerini topla",
+            "8. minPosition = Math.min(...positions)",
+            "9. seekTarget = max(0, minPosition - PAUSE_REWIND_BUFFER)",
+            "10. videoState update (isPlaying:false, currentTime:seekTarget)",
+            "11. urgentUpdates/push({action:'pause', currentTime:seekTarget})",
+            "12. videoElement.currentTime = seekTarget",
+            "13. videoElement.pause()",
+            "14. startBufferPreload(seekTarget + PAUSE_REWIND_BUFFER)"
+          ],
+          "v7_improvements": [
+            "Position reporting ile senkron pause",
+            "Minimum pozisyona 4 saniye geri sarma",
+            "Pause sonrası buffer preload (oynatma hazırlığı)"
+          ]
+        },
+        
+        "stopVideo": {
+          "actions": [
+            "videoState.currentTime = 0",
+            "videoState.isPlaying = false",
+            "urgentUpdates push (action:'seek', currentTime:0, shouldPlay:false)"
+          ]
+        },
+        
+        "seekVideo": {
+          "debounce": "SEEKDEBOUNCEDELAY (2000ms)",
+          "rewind": "Seek sırasında 2 saniye geri (SEEKREWINDSECONDS)",
+          "preload_logic": [
+            "wasPlaying ? preloadTime = newTime - 7s",
+            "videoElement.pause()",
+            "startPreloadWaiting(newTime)",
+            "Owner'a yetişince play()"
+          ]
+        },
+        
+        "buffer_preload_v7": {
+          "purpose": "Pause durumunda video buffer'ını önceden doldurma",
+          "trigger": "pauseVideo() veya urgent pause sonrası",
+          "target": "currentTime + PAUSE_REWIND_BUFFER",
+          "mechanism": [
+            "videoElement.pause() (ama src yüklü)",
+            "Her 1 saniyede buffered ranges kontrol",
+            "bufferedEnd >= targetTime ? stop preload"
+          ],
+          "benefit": "Play tuşuna basıldığında anında oynatma (buffer hazır)"
+        }
+      },
+      
+      "timeout_management_v6": {
+        "purpose": "Race condition önleme - çakışan komutları iptal etme",
+        "global_variables": [
+          "currentPlayTimeout",
+          "currentPauseTimeout",
+          "currentSeekTimeout"
+        ],
+        "cancelPendingOperations": "Tüm bekleyen timeout'ları clearTimeout()"
+      },
+      
+      "urgent_update_cleanup": {
+        "markOldUpdatesAsProcessed": [
+          "orderByChild('processed').equalTo(false) snapshot al",
+          "Tüm kayıtları {processed: true} yap",
+          "Prevent duplicate processing"
+        ]
+      }
+    },
+    
+    "core3.js": {
+      "purpose": "Sync correction, listeners, requests",
+      
+      "sync_correction_algorithm": {
+        "tier1_minimal": {
+          "threshold": "absDiff < 0.5s",
+          "action": "Sadece play/pause düzenle, rate=1.0",
+          "reasoning": "Çok küçük fark, kullanıcı fark etmez"
+        },
+        
+        "tier2_speed_adjustment": {
+          "threshold": "0.5s ≤ absDiff < 2.0s",
+          "action": "playbackRate = diff > 0 ? 1.1 : 0.9",
+          "reasoning": "Hafif hız ayarı ile smooth yakalama"
+        },
+        
+        "tier3_seek": {
+          "threshold": "absDiff ≥ 2.0s",
+          "action_urgent": "seek to (targetTime - SEEKREWINDSECONDS)",
+          "action_normal": "seek to targetTime",
+          "reasoning": "Büyük fark, seek kaçınılmaz",
+          "note": "Urgent update'lerde 2s geri sarma (buffer için)"
+        }
+      },
+      
+      "videoState_listener": {
+        "path": "rooms/[roomId]/videoState",
+        "trigger": "on('value')",
+        "frequency": "Her Firebase güncellemede (realtime)",
+        "processing": [
+          "1. state.currentTime + elapsed (eğer isPlaying)",
+          "2. applySyncCorrection(targetTime, state.isPlaying, false)"
+        ]
+      },
+      
+      "keyframe_system_v7": {
+        "sender_owner_only": true,
+        "interval": "7000ms",
+        "structure": {
+          "timestamp": "getServerTime()",
+          "currentTime": "videoElement.currentTime",
+          "isPlaying": "!videoElement.paused",
+          "playbackRate": "videoElement.playbackRate",
+          "startTimestamp": "isPlaying ? now : null",
+          "currentDrift": "calculateDrift() ms",
+          "viewerCount": "Object.keys(activeViewers).length"
+        },
+        "cleanup": "120 saniyeden eski keyframe'leri sil",
+        "listener_viewer": {
+          "query": "orderByChild('timestamp').limitToLast(1)",
+          "age_check": "age > 10000ms ? ignore",
+          "processing": "applySyncCorrection()"
+        }
+      },
+      
+      "urgentUpdates_listener_v7": {
+        "path": "rooms/[roomId]/urgentUpdates",
+        "query": "orderByChild('timestamp').startAt(getServerTime()).limitToLast(5)",
+        "trigger": "child_added",
+        "deduplication": "lastProcessedTimestamp ile eski update'leri atla",
+        "age_limit": "10000ms, sonra sil",
+        
+        "actions": {
+          "reportPosition": {
+            "purpose": "Pause öncesi pozisyon toplama",
+            "action": "activeViewers/[uid]/pausePosition = currentTime"
+          },
+          
+          "play": {
+            "delay_check": "startTimestamp - getServerTime()",
+            "positive_delay": [
+              "preloadTime = currentTime - 7s",
+              "seek to preloadTime",
+              "pause()",
+              "startPreloadWaiting(currentTime)",
+              "Owner'a yetişince play()"
+            ],
+            "negative_delay": "applySyncCorrection() (geç kaldık, direkt sync)"
+          },
+          
+          "pause": {
+            "action": "applySyncCorrection(currentTime, false, true)",
+            "v7_addition": "startBufferPreload(currentTime + 4s)"
+          },
+          
+          "seek": {
+            "shouldPlay_true": [
+              "preloadTime = newTime - 7s",
+              "seek to preloadTime",
+              "pause()",
+              "startPreloadWaiting(newTime)"
+            ],
+            "shouldPlay_false": "applySyncCorrection(newTime, false)"
+          }
+        },
+        
+        "processed_marking": "Her işlem sonrası {processed: true}",
+        "auto_delete": "30 saniye sonra kaydı sil"
+      },
+      
+      "request_system": {
+        "purpose": "Viewer'ların owner'a kontrol isteği göndermesi",
+        "path": "rooms/[roomId]/requests",
+        "structure": {
+          "userId": "auth.currentUser.uid",
+          "action": "play|pause|seek|stop",
+          "timestamp": "getServerTime()",
+          "processed": false,
+          "params": {
+            "seconds": "±10 (seek için)",
+            "percentage": "0-1 (seekbar için)"
+          }
+        },
+        
+        "owner_processing": {
+          "query": "orderByChild('processed').equalTo(false).limitToLast(5)",
+          "age_limit": "30000ms",
+          "ui": "confirm() dialog - Kullanıcı onayı",
+          "execution": "Onaylanırsa ilgili video fonksiyonunu çalıştır"
+        }
+      },
+      
+      "leaveRoom": {
+        "cleanup_checklist": [
+          "1. cancelPendingOperations() - Timeout'ları iptal",
+          "2. viewers counter transaction (decrement)",
+          "3. activeViewers/[uid].remove()",
+          "4. All listeners off()",
+          "5. clearAllIntervals()",
+          "6. stopBufferPreload()",
+          "7. stopPreloadWaiting()",
+          "8. videoElement.pause() + src=''",
+          "9. DOM cleanup (screen, environment, panel)",
+          "10. Global değişkenleri null",
+          "11. showSection('lobby-section')"
+        ]
+      }
+    },
+    
+    "ui1.js": {
+      "purpose": "UI management, room creation, video library",
+      
+      "video_library": {
+        "storage": "Firebase /videoLibrary node",
+        "structure": {
+          "url": "Video direct link",
+          "title": "Görünen başlık",
+          "addedAt": "Timestamp"
+        },
+        "default_videos": [
+          "https://vr-sinema.online/videos/revolver-turkce-dublaj.mp4",
+          "https://vr-sinema.online/videos/chocolat-cikolata-2000-turkce-dublaj.mp4"
+        ],
+        "auto_save": "Manuel girilen URL'ler otomatik kütüphaneye eklenir",
+        "duplicate_check": "orderByChild('url').equalTo(url) ile kontrol"
+      },
+      
+      "video_service_detection": {
+        "function": "detectVideoService(url)",
+        "services": ["youtube", "googledrive", "direct"],
+        "transform": "getVideoUrl(inputUrl) → playable URL"
+      },
+      
+      "room_creation_flow": {
+        "validation": [
+          "roomName !== empty",
+          "videoUrl !== empty (dropdown ya da manuel)"
+        ],
+        "auth": "signInAnonymously()",
+        "firebase_push": "roomsRef.push(roomData)",
+        "roomData_structure": {
+          "name": "string",
+          "videoUrl": "transformed URL",
+          "subtitleUrl": "string | null",
+          "environment": "none|default|forest|starry",
+          "screenSize": "small|medium|large|huge",
+          "owner": "auth.currentUser.uid",
+          "isPrivate": "boolean",
+          "password": "string | null",
+          "controlMode": "owner|everyone",
+          "createdAt": "Date.now()",
+          "videoState": {
+            "isPlaying": false,
+            "currentTime": 0,
+            "startTimestamp": null,
+            "lastUpdate": "Date.now()"
+          }
+        },
+        "post_creation": "joinRoom(newRoomRef.key)"
+      },
+      
+      "room_listing": {
+        "query": "roomsRef.once('value')",
+        "display_info": [
+          "room.name (🔒 prefix if private)",
+          "viewer count (activeViewers.length)",
+          "environment name"
+        ],
+        "join_flow": "isPrivate ? prompt(password) : direct join"
+      },
+      
+      "throttle_utility": {
+        "updateRoomInfoDisplay": "3000ms throttle",
+        "purpose": "Firebase read azaltma"
+      }
+    },
+    
+    "ui2.js": {
+      "purpose": "Room controls, video setup, subtitle",
+      
+      "updateRoomControls": {
+        "logic": "canControl = isRoomOwner || controlMode === 'everyone'",
+        "ui_update": "Button disabled/enabled states",
+        "owner_badge": "Görünürlük toggle"
+      },
+      
+      "setupVideo": {
+        "steps": [
+          "1. getVideoUrl() - Transform URL",
+          "2. setupVideoTexture() - Create <a-video>",
+          "3. Environment component update"
+        ]
+      },
+      
+      "setupVideoTexture": {
+        "screen_geometries": {
+          "360": "sphere primitive, radius:50, side:back, scale:(-1,1,1)",
+          "180": "sphere primitive, radius:25, thetaLength:180",
+          "flat": "plane primitive, width x height"
+        },
+        "video_element": {
+          "id": "video-src",
+          "crossOrigin": "anonymous",
+          "preload": "metadata",
+          "loop": false,
+          "playsInline": true,
+          "muted": false
+        },
+        "event_listeners": [
+          "loadedmetadata - Duration log",
+          "canplay - screen.visible = true",
+          "error - Alert user"
+        ]
+      },
+      
+      "subtitle_system": {
+        "loadSubtitles": "fetch → parseSRT → render",
+        "parseSRT": "SRT format parser (HH:MM:SS,mmm → seconds)",
+        "rendering": "<a-text> at (0, -3, -10)",
+        "update_interval": "100ms subtitle check loop"
+      },
+      
+      "showSection": {
+        "lobby": [
+          "ui-overlay show",
+          "vr-controls hide",
+          "room-info hide",
+          "loadRoomList()"
+        ],
+        "room": [
+          "ui-overlay hide",
+          "vr-controls show",
+          "room-info show"
+        ]
+      },
+      
+      "loadVideo_promise": {
+        "purpose": "Async video loading with error handling",
+        "events": "canplay (resolve) | error (reject)"
+      },
+      
+      "changeEnvironment": {
+        "function": "setAttribute('environment', `preset: ${envName}`)",
+        "none_case": "removeAttribute('environment')"
+      }
+    },
+    
+    "vr-controls.js": {
+      "purpose": "VR UI panel + 3D controls (mobile/desktop/VR compatible)",
+      
+      "vr_cursor": {
+        "smart_visibility": "Sadece clickable objelere yaklaşınca görünür",
+        "events": [
+          "raycaster-intersected → opacity:0.8",
+          "raycaster-intersected-cleared → opacity:0"
+        ],
+        "config": "color:#00FF00, fuse:false, raycaster far:100"
+      },
+      
+      "vr_ui_panel": {
+        "position": "config.VRUICONFIG.position (-5, 1.6, -3)",
+        "rotation": "(0, 90, 0) - User'a dönük",
+        "scale": "0.7",
+        
+        "components": {
+          "title": "VR KONTROL PANELI text",
+          "buttons": [
+            "PLAY (#4CAF50)",
+            "DURDUR (#FF9800)",
+            "BITIR (#F44336)",
+            "±10s seek (#2196F3)",
+            "SES± (#9C27B0)",
+            "SESİZ (#607D8B)",
+            "Screen position (↑↓←→⟲) (#00BCD4)",
+            "BÜYÜT/KÜÇÜLT (#795548)"
+          ],
+          
+          "seekbar": {
+            "width": "1.8 (VRUICONFIG.seekBarWidth)",
+            "components": [
+              "Background bar (clickable)",
+              "Progress bar (dynamic width)",
+              "Time text (current/total)",
+              "Volume indicator"
+            ],
+            "click_handling": "VR + Mouse + Touch support"
+          }
+        }
+      },
+      
+      "button_creation": {
+        "geometry": "a-box (width:0.28, height:0.28, depth:0.05)",
+        "text": "a-text child (align:center, width:1.5)",
+        "events": [
+          "click - VR controller",
+          "mousedown - Desktop mouse",
+          "touchstart - Mobile touch"
+        ],
+        "class": "clickable - Raycaster target"
+      },
+      
+      "seekbar_precision": {
+        "algorithm": "World-space coordinate calculation",
+        "steps": [
+          "1. getWorldPosition() - Seekbar world pos",
+          "2. intersection.point - Click world pos",
+          "3. localClickPoint = clickPoint - seekBarPos",
+          "4. applyQuaternion(inverse rotation)",
+          "5. relativeX / seekBarWidth → percentage",
+          "6. clamp(0, 1)",
+          "7. seekToPosition(percentage)"
+        ],
+        "compatibility": [
+          "VR: raycaster-intersected event",
+          "Desktop: mousedown + THREE.Raycaster",
+          "Mobile: touchstart + raycaster calculation"
+        ]
+      },
+      
+      "seekbar_update": {
+        "interval": "500ms",
+        "progress_calculation": "current / duration → width",
+        "position_calculation": "-width/2 + (width * progress)/2",
+        "time_display": "formatTime(current) / formatTime(duration)"
+      },
+      
+      "screen_controls": {
+        "moveScreen": {
+          "step": "0.5 units",
+          "directions": ["up", "down", "left", "right", "forward", "backward"],
+          "reset": "position:(0,2,-10), scale:1"
+        },
+        
+        "scaleScreen": {
+          "delta": "±0.1",
+          "range": "0.5 - 3.0",
+          "implementation": "setAttribute('scale', `${s} ${s} ${s}`)"
+        }
+      },
+      
+      "volume_controls": {
+        "adjustVolume": "videoElement.volume ± 0.1 (clamp 0-1)",
+        "toggleMute": "videoElement.muted = !muted",
+        "indicator_update": "#vr-volume-indicator text update"
+      },
+      
+      "formatTime": {
+        "format": "M:SS",
+        "implementation": "Math.floor(s/60):Math.floor(s%60).padStart(2,'0')"
+      }
+    },
+    
+    "styles.css": {
+      "purpose": "UI overlay styling + responsive design",
+      
+      "key_styles": {
+        "ui_overlay": {
+          "gradient": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          "transition": "opacity 0.5s",
+          "hidden_state": "opacity:0, pointer-events:none"
+        },
+        
+        "ui_container": {
+          "background": "rgba(255,255,255,0.95)",
+          "border_radius": "20px",
+          "max_height": "90vh",
+          "overflow_y": "auto",
+          "box_shadow": "0 20px 60px rgba(0,0,0,0.3)"
+        },
+        
+        "buttons": {
+          "gradient": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          "hover": "translateY(-2px) + box-shadow",
+          "variants": {
+            "secondary": "#f093fb → #f5576c",
+            "stop": "#ff9800 → #ff5722"
+          }
+        },
+        
+        "room_item": {
+          "background": "#f8f9fa",
+          "border_left": "4px solid #667eea",
+          "hover": "translateX(5px) + shadow",
+          "cursor": "pointer"
+        },
+        
+        "vr_controls": {
+          "position": "fixed bottom:20px left:50% translateX(-50%)",
+          "background": "rgba(0,0,0,0.8)",
+          "border_radius": "15px",
+          "display": "none (visible class → block)"
+        },
+        
+        "room_info_display": {
+          "position": "fixed top:20px right:20px",
+          "background": "rgba(0,0,0,0.8)",
+          "color": "white",
+          "display": "none (visible class → block)"
+        },
+        
+        "responsive": {
+          "breakpoint": "768px",
+          "changes": [
+            "Container padding reduce",
+            "Font size reduce",
+            "VR controls smaller",
+            "Room info smaller"
+          ]
+        }
+      }
+    },
+    
+    "firebase-rules.json": {
+      "purpose": "Firebase Realtime Database security rules",
+      
+      "key_rules": {
+        "videoLibrary": {
+          "read": "public (true)",
+          "write": "authenticated (auth != null)",
+          "indexOn": ["addedAt", "url"],
+          "validation": {
+            "url": "string, 10-2000 chars",
+            "title": "string, 2-200 chars",
+            "addedAt": "number, < now+1000"
+          }
+        },
+        
+        "rooms": {
+          "read": "public",
+          "indexOn": ["createdAt", "viewers", "isPrivate"],
+          
+          "owner_transfer": {
+            "write": "auth != null && (!data.exists() || data.val() == null || data.val() == auth.uid)",
+            "purpose": "Atomic ownership transfer via transaction"
+          },
+          
+          "videoState": {
+            "read": "true",
+            "write": "auth != null && (controlMode == 'everyone' || owner == auth.uid)",
+            "validation": {
+              "isPlaying": "boolean",
+              "currentTime": "number, 0-86400 (24 hours max)",
+              "startTimestamp": "number, now±7000ms | null",
+              "lastUpdate": "number, < now+1000"
+            }
+          },
+          
+          "activeViewers": {
+            "read": "true",
+            "indexOn": ["timestamp", "lastSeen"],
+            "write": "auth.uid == $viewerId (own entry only)",
+            "validation": {
+              "timestamp": "number, < now+1000",
+              "lastSeen": "number, < now+1000",
+              "isOwner": "boolean",
+              "currentDrift": "number, -30000 to 30000 ms",
+              "playbackRate": "number, 0.5-2"
+            }
+          },
+          
+          "keyframes": {
+            "read": "true",
+            "write": "auth != null && owner == auth.uid (owner only)",
+            "indexOn": ["timestamp"],
+            "validation": {
+              "timestamp": "number, now±7000ms",
+              "currentTime": "number, 0-86400",
+              "isPlaying": "boolean",
+              "playbackRate": "number, 0.25-4 (optional)",
+              "startTimestamp": "number, now±7000ms | null (optional)",
+              "drift": "number, -30000 to 30000 (optional)"
+            }
+          },
+          
+          "urgentUpdates": {
+            "read": "true",
+            "write": "auth != null && (controlMode == 'everyone' || owner == auth.uid)",
+            "indexOn": ["timestamp", "processed"],
+            "validation": {
+              "action": "string, play|pause|seek",
+              "timestamp": "number, now±7000ms",
+              "processed": "boolean",
+              "currentTime": "number, 0-86400 (optional)",
+              "startTimestamp": "number, now±7000ms | null (optional)",
+              "shouldPlay": "boolean (optional)"
+            }
+          },
+          
+          "requests": {
+            "read": "true",
+            "write": "auth != null",
+            "indexOn": ["timestamp", "processed"],
+            "validation": {
+              "userId": "string, == auth.uid",
+              "action": "string, play|pause|seek|stop",
+              "timestamp": "number, now±7000ms",
+              "processed": "boolean",
+              "params": {
+                "currentTime": "number, 0-86400 (optional)",
+                "shouldPlay": "boolean (optional)",
+                "seconds": "number, -600 to 600 (optional)",
+                "percentage": "number, 0-1 (optional)"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  
+  "synchronization_deep_dive": {
+    "problem_statement": "Gerçek zamanlı video senkronizasyonu 100+ ms ağ gecikmeleriyle",
+    
+    "solution_architecture": {
+      "layer1_clock_sync": {
+        "purpose": "Tüm clientların ortak zaman referansı",
+        "method": "RTT-based offset calculation",
+        "precision": "±50-100ms",
+        "refresh": "60 saniyede bir"
+      },
+      
+      "layer2_state_propagation": {
+        "videoState": "Ana durum (isPlaying, currentTime, startTimestamp)",
+        "urgentUpdates": "Anında eylemler (play, pause, seek)",
+        "keyframes": "Periyodik kontrol noktaları (7 saniyede bir)"
+      },
+      
+      "layer3_drift_correction": {
+        "detection": "Beklenen zaman vs gerçek zaman farkı",
+        "tier1": "<0.5s → Sadece play/pause",
+        "tier2": "0.5-2s → Playback rate ayarı",
+        "tier3": ">2s → Seek required"
+      },
+      
+      "layer4_preload_optimization": {
+        "purpose": "Geciken izleyicilerin smooth yakalanması",
+        "mechanism": "7 saniye önceden başla, owner'a yetişince play",
+        "benefit": "Buffering minimize, user experience improve"
+      },
+      
+      "layer5_pause_sync_v7": {
+        "problem": "Pause sırasında herkes farklı pozisyonda",
+        "solution": "Tüm pozisyonları topla, minimum'a 4s geri sar",
+        "benefit": "Herkes aynı noktadan play, senkron korunur"
+      }
+    }
+  },
+  
+  "test_scenarios": {
+    "scenario1_basic_sync": {
+      "steps": [
+        "1. Owner odayı oluştur ve videoyu başlat",
+        "2. 3 viewer odaya katılsın",
+        "3. Her viewer'ın drift'i izle (activeViewers)",
+        "4. Drift ±1000ms içinde mi kontrol et"
+      ],
+      "expected": "Tüm viewer'lar ±1s içinde senkron"
+    },
+    
+    "scenario2_network_lag": {
+      "setup": "Chrome DevTools → Network → Throttling → Slow 3G",
+      "steps": [
+        "1. Yavaş bağlantı ile odaya katıl",
+        "2. Video oynarken drift'i gözle",
+        "3. Tier2 (playbackRate) veya Tier3 (seek) tetiklenmeli"
+      ],
+      "expected": "10 saniye içinde senkronize olma"
+    },
+    
+    "scenario3_pause_sync": {
+      "steps": [
+        "1. 5 viewer'lı odada video oynatılıyor",
+        "2. Owner pause tuşuna bassın",
+        "3. reportPosition komutu gelmeli",
+        "4. Tüm viewer'lar pausePosition yaz",
+        "5. 1 saniye sonra minimum pozisyon tespit",
+        "6. minPos - 4s → seekTarget",
+        "7. Herkes aynı noktada dursun"
+      ],
+      "expected": "Tüm viewer'lar ±0.5s içinde aynı frame'de pause"
+    },
+    
+    "scenario4_owner_disconnect": {
+      "steps": [
+        "1. Owner odayı oluştur",
+        "2. 2 viewer katılsın",
+        "3. Owner tarayıcıyı kapat (disconnect)",
+        "4. 15 saniye sonra owner presence timeout",
+        "5. attemptOwnerTransfer() tetiklenmeli",
+        "6. İlk viewer owner olmalı"
+      ],
+      "expected": "Ownership smooth transfer, video senkron devam"
+    },
+    
+    "scenario5_seek_preload": {
+      "steps": [
+        "1. Video 100. saniyede oynatılıyor",
+        "2. Owner seek bar'dan 200. saniyeye tıklasın",
+        "3. urgentUpdate {action:'seek', currentTime:200, shouldPlay:true}",
+        "4. Viewer'lar 193. saniyeye seek etmeli",
+        "5. pause() ve preloadWaiting başlasın",
+        "6. Owner 200'e ulaşınca viewer'lar play etmeli"
+      ],
+      "expected": "Smooth seek, stutter yok"
+    },
+    
+    "scenario6_mobile_vr": {
+      "device": "Android phone + Cardboard/GearVR",
+      "steps": [
+        "1. Mobil cihazda odaya katıl",
+        "2. VR mode'a geç (A-Frame VR button)",
+        "3. VR cursor ile UI panelindeki butonlara tıkla",
+        "4. Seekbar'ı VR cursor ile kullan",
+        "5. Screen pozisyonunu VR'da ayarla"
+      ],
+      "expected": "Tüm kontroller mobil VR'da çalışmalı"
+    },
+    
+    "scenario7_concurrent_commands": {
+      "setup": "2 owner (controlMode:'everyone')",
+      "steps": [
+        "1. User A play tuşuna basıyor",
+        "2. 100ms sonra User B pause tuşuna basıyor",
+        "3. lastProcessedTimestamp ile deduplication",
+        "4. En yeni timestamp (pause) kazanmalı"
+      ],
+      "expected": "Race condition yok, en yeni komut geçerli"
+    },
+    
+    "scenario8_video_library": {
+      "steps": [
+        "1. Oda oluştur → Manuel URL gir",
+        "2. saveVideoToLibrary() tetiklenmeli",
+        "3. Firebase /videoLibrary'ye yazılmalı",
+        "4. Yeni oda oluştururken dropdown'da görünmeli",
+        "5. Dropdown'dan seç → URL otomatik doldurulmalı"
+      ],
+      "expected": "Video library management çalışıyor"
+    },
+    
+    "scenario9_subtitle_sync": {
+      "steps": [
+        "1. SRT dosyası URL'i gir",
+        "2. parseSRT() ile parse edilmeli",
+        "3. Video oynatılırken altyazı çıkmalı",
+        "4. Seek yapınca altyazı sync olmalı"
+      ],
+      "expected": "Altyazı video ile senkron"
+    },
+    
+    "scenario10_memory_leak": {
+      "duration": "30 dakika",
+      "steps": [
+        "1. Oda oluştur ve katıl",
+        "2. 5 dakika izle",
+        "3. leaveRoom() → lobby",
+        "4. Yeni oda oluştur ve katıl",
+        "5. 5 kez tekrarla",
+        "6. Chrome Task Manager'da memory kullanımını izle"
+      ],
+      "expected": "Memory leak yok, stabilize kullanım"
+    }
+  },
+  
+  "performance_optimizations": {
+    "firebase_writes": [
+      "Drift: Sadece ±1000ms değişimde yaz",
+      "Keyframe: 7 saniye interval (2s → 7s)",
+      "Old data cleanup: 2 dakika, 30 saniye auto-delete"
+    ],
+    
+    "ui_updates": [
+      "updateRoomInfoDisplay: 3 saniye throttle",
+      "VR seekbar: 500ms update interval"
+    ],
+    
+    "listener_efficiency": [
+      "limitToLast(1) - Sadece en yeni keyframe",
+      "limitToLast(5) - Son 5 urgent update",
+      "startAt(getServerTime()) - Sadece yeni update'ler"
+    ],
+    
+    "memory_management": [
+      "Tracked intervals - clearAllIntervals()",
+      "Listener cleanup - off() on leave",
+      "DOM cleanup - remove() on leave"
+    ]
+  },
+  
+  "edge_cases_handled": {
+    "owner_disconnect": "Automatic ownership transfer",
+    "network_partition": "Auto-reconnect + state resync",
+    "concurrent_commands": "Timestamp-based deduplication",
+    "buffer_starvation": "Preload waiting system",
+    "mobile_performance": "Optimized update intervals",
+    "vr_input_compatibility": "Multi-event handling (click/mouse/touch)"
+  },
+  
+  "deployment_instructions": {
+    "firebase_setup": [
+      "1. Firebase Console → Yeni proje oluştur",
+      "2. Realtime Database aktif et (başlangıç: test mode)",
+      "3. Authentication → Anonymous giriş aktif et",
+      "4. firebase-rules.json → Database Rules'a yapıştır",
+      "5. config.js → firebaseConfig güncelle"
+    ],
+    
+    "hosting": [
+      "Firebase Hosting (önerilen)",
+      "GitHub Pages",
+      "Netlify",
+      "Vercel",
+      "Herhangi bir static host"
+    ],
+    
+    "ssl_requirement": "HTTPS gerekli (WebRTC + Firebase)",
+    
+    "cors_note": "Video URL'leri CORS-enabled olmalı veya proxy kullan"
+  },
+  
+  "browser_compatibility": {
+    "chrome": "✅ Full support (önerilen)",
+    "firefox": "✅ Full support",
+    "safari": "⚠️ Partial (iOS autoplay kısıtlamaları)",
+    "edge": "✅ Full support",
+    "mobile_chrome": "✅ Full support",
+    "mobile_safari": "⚠️ Partial (VR limited)"
+  },
+  
+  "future_improvements": {
+    "suggested_features": [
+      "WebRTC peer-to-peer video streaming (Firebase yerine)",
+      "Chat system (text/voice)",
+      "User avatars in VR space",
+      "Playlist support",
+      "Recording/replay functionality",
+      "Admin dashboard (analytics)"
+    ],
+    
+    "performance_enhancements": [
+      "WebSocket fallback (Firebase pahalı)",
+      "CDN integration for videos",
+      "Adaptive bitrate streaming",
+      "Client-side prediction (smoother sync)"
+    ]
+  },
+  
+  "common_issues_solutions": {
+    "issue_video_not_loading": {
+      "causes": [
+        "CORS policy (video sunucu CORS disabled)",
+        "Invalid URL",
+        "Network blocked"
+      ],
+      "solutions": [
+        "CORS proxy kullan (örn: Cloudflare Worker)",
+        "Video URL'i test et (direkt browser'da aç)",
+        "Network console'u kontrol et"
+      ]
+    },
+    
+    "issue_desync": {
+      "causes": [
+        "Clock offset yanlış",
+        "Network lag >1000ms",
+        "Firebase quota aşımı"
+      ],
+      "solutions": [
+        "initClockSync() manuel çalıştır",
+        "Network throttling kapat",
+        "Firebase plan yükselt"
+      ]
+    },
+    
+    "issue_vr_controls_not_working": {
+      "causes": [
+        "Raycaster misconfigured",
+        "Clickable class eksik",
+        "Cursor invisible"
+      ],
+      "solutions": [
+        "class='clickable' ekle",
+        "VR cursor opacity kontrol et",
+        "A-Frame console hataları kontrol et"
+      ]
+    }
+  },
+  
+  "code_style_guide": {
+    "naming": {
+      "functions": "camelCase (playVideo, listenKeyframes)",
+      "constants": "UPPERCASE_SNAKE (SYNCDELAY, KEYFRAMEINTERVAL)",
+      "global_vars": "camelCase (videoElement, currentRoomData)"
+    },
+    
+    "debugging": {
+      "DEBUGMODE": "true/false toggle",
+      "console.log_prefix": "Emoji based (🎬 ✅ ⚠️ ❌)",
+      "debugLog_function": "if (DEBUGMODE) wrapper"
+    },
+    
+    "error_handling": {
+      "firebase_operations": "try-catch + catch(err => ...)",
+      "video_play": ".play().catch(err => console.warn())",
+      "promise_chains": ".then().catch()"
+    }
+  },
+  
+  "ai_recreation_checklist": [
+    "✅ Firebase config + rules setup",
+    "✅ Clock sync implementation (RTT algorithm)",
+    "✅ Video state management (isPlaying, currentTime, startTimestamp)",
+    "✅ Drift calculation + tier-based correction",
+    "✅ Keyframe system (owner → viewers)",
+    "✅ Urgent updates (play, pause, seek)",
+    "✅ Preload waiting (7s buffer)",
+    "✅ Pause sync v7 (position reporting + rewind)",
+    "✅ Buffer preload (pause → play smooth)",
+    "✅ Owner presence + auto-transfer",
+    "✅ VR UI panel (buttons, seekbar)",
+    "✅ Multi-input support (VR/mouse/touch)",
+    "✅ Seekbar precision (world-space calculation)",
+    "✅ Video library management",
+    "✅ Subtitle system (SRT parser)",
+    "✅ Room creation + listing",
+    "✅ Request system (viewer → owner)",
+    "✅ Keyboard shortcuts",
+    "✅ Memory leak prevention",
+    "✅ Responsive CSS",
+    "✅ Error handling throughout"
+  ],
+  
+  "single_html_generation_guide": {
+    "structure": {
+      "<!DOCTYPE html>": "HTML5",
+      "<head>": [
+        "Firebase 9.22.0 CDN (app, database, auth)",
+        "A-Frame 1.6.0 CDN",
+        "A-Frame environment component 1.3.7 CDN",
+        "Inline <style> (styles.css içeriği)",
+        "Firebase config inline <script>"
+      ],
+      "<body>": [
+        "UI overlay div structure",
+        "VR controls div",
+        "Room info div",
+        "Sync status div",
+        "A-Frame <a-scene>",
+        "Inline <script> (tüm JS dosyaları sırayla)"
+      ]
+    },
+    
+    "script_order": [
+      "1. config.js",
+      "2. ui1.js",
+      "3. ui2.js",
+      "4. core1.js",
+      "5. core2.js",
+      "6. core3.js",
+      "7. vr-controls.js",
+      "8. DOMContentLoaded event listener"
+    ],
+    
+    "minification_notes": [
+      "CSS: Whitespace kaldır, comments kaldır",
+      "JS: Yorumları kaldır (// ve /* */)",
+      "HTML: Gereksiz boşlukları kaldır",
+      "Debug log'ları production'da kaldırılabilir"
+    ]
+  }
+}

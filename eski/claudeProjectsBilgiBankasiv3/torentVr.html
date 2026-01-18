@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR Sinema ULTRA - Optimized</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    
+    <!-- A-Frame VR -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    
+    <!-- Adaptive Streaming (ABR): HLS.js + dash.js -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js"></script>
+    <script src="https://cdn.dashjs.org/v5.1.1/modern/umd/dash.all.min.js"></script>
+    
+    <!-- WebTorrent P2P -->
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+    
+    <STYLe></style>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- UI Overlay -->
+    <div id="ui-overlay">
+        <div class="container">
+            <h1>🎬 VR Sinema ULTRA</h1>
+            
+            <div id="create-room-section">
+                <div class="input-group">
+                    <label>Oda Adı</label>
+                    <input type="text" id="room-name" placeholder="Özel film gecesi">
+                </div>
+                
+                <!-- Video Source Tabs -->
+                <div class="input-group">
+                    <label>Video Kaynağı</label>
+                    <div class="video-source-tabs">
+                        <button type="button" id="tab-url" class="active" onclick="switchVideoSourceTab('url')">🔗 URL</button>
+                        <button type="button" id="tab-local" onclick="switchVideoSourceTab('local')">📁 Lokal Dosya (P2P)</button>
+                    </div>
+                </div>
+                
+                <!-- URL Section -->
+                <div id="url-section">
+                    <div class="input-group">
+                        <label>Video URL</label>
+                        <input type="text" id="video-url" placeholder="YouTube, Google Drive veya direkt video linki">
+                    </div>
+                </div>
+                
+                <!-- Local File Section (P2P) -->
+                <div id="local-file-section">
+                    <div class="input-group">
+                        <div class="file-drop-zone" id="file-drop-zone" onclick="document.getElementById('local-video-file').click()">
+                            <div>📁 Dosya seçmek için tıklayın veya sürükleyip bırakın</div>
+                            <div style="font-size: 12px; opacity: 0.7; margin-top: 8px;">MP4, WebM, MKV desteklenir</div>
+                            <input type="file" id="local-video-file" accept="video/*">
+                            <div id="selected-file-name"></div>
+                        </div>
+                    </div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 15px;">
+                        ⚡ P2P: Video dosyanız doğrudan arkadaşlarınıza aktarılır. Tarayıcı açık kalmalıdır.
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label>Açıklama (isteğe bağlı)</label>
+                    <textarea id="room-description" placeholder="Bu odada ne izlenecek?"></textarea>
+                </div>
+                
+                <div class="input-group">
+                    <label>Ekran Boyutu</label>
+                    <select id="screen-size">
+                        <option value="medium">Orta (16:9)</option>
+                        <option value="large">Büyük (21:9)</option>
+                        <option value="imax">IMAX (1.43:1)</option>
+                    </select>
+                </div>
+                
+                <div class="input-group">
+                    <label>Ortam</label>
+                    <select id="environment">
+                        <option value="none">Yok (En Hızlı)</option>
+                        <option value="minimal">Minimal</option>
+                    </select>
+                </div>
+                
+                <button onclick="createRoom()">🚀 Oda Oluştur ve Katıl</button>
+                <button onclick="showRoomList()">📋 Mevcut Odalar</button>
+            </div>
+            
+            <div id="room-list-section" class="hidden">
+                <button onclick="showCreateRoom()">← Geri</button>
+                <div id="room-list"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- VR Controls (2D overlay) -->
+    <div id="vr-controls">
+        <button id="btn-play" onclick="playVideo()">▶️ Oynat</button>
+        <button id="btn-pause" onclick="pauseVideo()">⏸️ Duraklat</button>
+        <button id="btn-rewind" onclick="seekBackward()">⏪ -10s</button>
+        <button id="btn-forward" onclick="seekForward()">⏩ +10s</button>
+        <button id="btn-sync" onclick="initiateSync()">🔄 Sync</button>
+                <button id="btn-quality-down" onclick="decreaseMaxQuality()">📉 Kalite -</button>
+        <button id="btn-quality-up" onclick="increaseMaxQuality()">📈 Kalite +</button>
+        <div id="quality-cap-label" style="font-size: 12px; opacity: 0.85; padding: 0 6px; white-space: nowrap;">Max: 720p</div>
+        <button onclick="leaveRoom()">🚪 Çık</button>
+    </div>
+    
+    <!-- Room Info -->
+    <div id="room-info">
+        <div id="room-name-display"></div>
+        <div id="viewer-count"></div>
+    </div>
+    
+    <!-- Sync Status -->
+    <div id="sync-status">
+        <span id="sync-text">Senkronize</span>
+        <div id="sync-countdown" style="display: none; margin-top: 5px; font-size: 18px; font-weight: bold;"></div>
+    </div>
+    
+    <!-- Buffer Timer -->
+    <div id="buffer-timer"></div>
+    
+    <!-- Buffer Countdown -->
+    <div id="buffer-countdown"></div>
+    
+    <!-- P2P Status -->
+    <div id="p2p-status">
+        <div id="p2p-status-text">P2P Bağlantısı...</div>
+        <div id="p2p-progress-bar">
+            <div id="p2p-progress-fill"></div>
+        </div>
+        <div id="p2p-stats" style="margin-top: 6px; font-size: 11px; opacity: 0.8;"></div>
+    </div>
+    
+    <!-- A-Frame Scene -->
+    <a-scene vr-mode-ui="enabled: true" loading-screen="enabled: false">
+        <a-assets></a-assets>
+        
+        <!-- Camera with cursor for VR interaction (optimized) -->
+        <a-camera position="0 1.6 0">
+            <a-cursor
+                id="vr-cursor"
+                color="#4ade80"
+                raycaster="objects: .clickable; interval: 1000; far: 5"
+                fuse="false"
+                visible="false">
+            </a-cursor>
+        </a-camera>
+        
+        <!-- Lighting (minimal for performance) -->
+        <a-light type="ambient" color="#BBB" intensity="0.5"></a-light>
+    </a-scene>
+    
+    <script></script>
+
+<script>
+const v = new Date().getTime();
+document.write('<script src="js1.js?v=' + v + '"><\/script>');
+document.write('<script src="js2.js?v=' + v + '"><\/script>');
+document.write('<script src="js3.js?v=' + v + '"><\/script>');
+document.write('<script src="js4.js?v=' + v + '"><\/script>');
+document.write('<script src="js5.js?v=' + v + '"><\/script>');
+document.write('<script src="js6.js?v=' + v + '"><\/script>');
+document.write('<script src="js7.js?v=' + v + '"><\/script>');
+document.write('<script src="js8.js?v=' + v + '"><\/script>');
+document.write('<script src="js9.js?v=' + v + '"><\/script>');
+document.write('<script src="js10.js?v=' + v + '"><\/script>');
+document.write('<script src="js11.js?v=' + v + '"><\/script>');
+document.write('<script src="js12.js?v=' + v + '"><\/script>');
+document.write('<script src="js13.js?v=' + v + '"><\/script>');
+document.write('<script src="js14.js?v=' + v + '"><\/script>');
+document.write('<script src="js15.js?v=' + v + '"><\/script>');
+document.write('<script src="js16.js?v=' + v + '"><\/script>');
+document.write('<script src="js17.js?v=' + v + '"><\/script>');
+document.write('<script src="js18.js?v=' + v + '"><\/script>');
+document.write('<script src="js19.js?v=' + v + '"><\/script>');
+document.write('<script src="js20.js?v=' + v + '"><\/script>');
+document.write('<script src="js21.js?v=' + v + '"><\/script>');
+document.write('<script src="js22.js?v=' + v + '"><\/script>');
+document.write('<script src="js23.js?v=' + v + '"><\/script>');
+document.write('<script src="js24.js?v=' + v + '"><\/script>');
+document.write('<script src="js25.js?v=' + v + '"><\/script>');
+document.write('<script src="js26.js?v=' + v + '"><\/script>');
+document.write('<script src="js27.js?v=' + v + '"><\/script>');
+document.write('<script src="js28.js?v=' + v + '"><\/script>');
+document.write('<script src="js29.js?v=' + v + '"><\/script>');
+document.write('<script src="js30.js?v=' + v + '"><\/script>');
+document.write('<script src="js31.js?v=' + v + '"><\/script>');
+document.write('<script src="js32.js?v=' + v + '"><\/script>');
+document.write('<script src="js33.js?v=' + v + '"><\/script>');
+document.write('<script src="js34.js?v=' + v + '"><\/script>');
+document.write('<script src="js35.js?v=' + v + '"><\/script>');
+document.write('<script src="js36.js?v=' + v + '"><\/script>');
+document.write('<script src="js37.js?v=' + v + '"><\/script>');
+document.write('<script src="js38.js?v=' + v + '"><\/script>');
+document.write('<script src="js39.js?v=' + v + '"><\/script>');
+document.write('<script src="js40.js?v=' + v + '"><\/script>');
+</script>
+</body> 
+</html>

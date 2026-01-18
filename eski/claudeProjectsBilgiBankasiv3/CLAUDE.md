@@ -1,4 +1,4 @@
-﻿# VR Sinema ULTRA - Proje Talimatları
+# VR Sinema ULTRA - Proje Talimatları
 
 ## 📋 Proje Açıklaması
 WebRTC tabanlı çok oyunculu VR sinema uygulaması. Kullanıcılar sanal gerçeklik ortamında birlikte video izleyebilir, P2P (WebTorrent) ile video paylaşabilir ve gerçek zamanlı senkronize film deneyimi yaşayabilir.

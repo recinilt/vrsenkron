@@ -16,10 +16,6 @@
     <!-- Adaptive Streaming (ABR): HLS.js + dash.js -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js"></script>
     <script src="https://cdn.dashjs.org/v5.1.1/modern/umd/dash.all.min.js"></script>
-    
-    <!-- WebTorrent P2P -->
-    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
-    
     <STYLe>
         * {
             margin: 0;
@@ -230,99 +226,6 @@
             display: none !important;
         }
         
-        /* P2P Status Styles */
-        #p2p-status {
-            position: fixed;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 500;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(10px);
-            padding: 12px 20px;
-            border-radius: 10px;
-            display: none;
-            font-size: 13px;
-            text-align: center;
-            min-width: 280px;
-        }
-        
-        #p2p-progress-bar {
-            width: 100%;
-            height: 6px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 3px;
-            margin-top: 8px;
-            overflow: hidden;
-        }
-        
-        #p2p-progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #4ade80, #22c55e);
-            border-radius: 3px;
-            width: 0%;
-            transition: width 0.3s;
-        }
-        
-        .video-source-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .video-source-tabs button {
-            flex: 1;
-            padding: 10px;
-            font-size: 14px;
-            background: rgba(255,255,255,0.1);
-            border: 2px solid transparent;
-        }
-        
-        .video-source-tabs button.active {
-            background: rgba(102, 126, 234, 0.5);
-            border-color: #667eea;
-        }
-        
-        #local-file-section {
-            display: none;
-        }
-        
-        #local-file-section.active {
-            display: block;
-        }
-        
-        #url-section {
-            display: block;
-        }
-        
-        #url-section.hidden-tab {
-            display: none;
-        }
-        
-        .file-drop-zone {
-            border: 2px dashed rgba(255,255,255,0.4);
-            border-radius: 10px;
-            padding: 30px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .file-drop-zone:hover, .file-drop-zone.dragover {
-            border-color: #4ade80;
-            background: rgba(74, 222, 128, 0.1);
-        }
-        
-        .file-drop-zone input[type="file"] {
-            display: none;
-        }
-        
-        #selected-file-name {
-            margin-top: 10px;
-            font-size: 14px;
-            color: #4ade80;
-        }
-        
         @media (max-width: 600px) {
             .container {
                 padding: 20px;
@@ -350,36 +253,9 @@
                     <input type="text" id="room-name" placeholder="Özel film gecesi">
                 </div>
                 
-                <!-- Video Source Tabs -->
                 <div class="input-group">
-                    <label>Video Kaynağı</label>
-                    <div class="video-source-tabs">
-                        <button type="button" id="tab-url" class="active" onclick="switchVideoSourceTab('url')">🔗 URL</button>
-                        <button type="button" id="tab-local" onclick="switchVideoSourceTab('local')">📁 Lokal Dosya (P2P)</button>
-                    </div>
-                </div>
-                
-                <!-- URL Section -->
-                <div id="url-section">
-                    <div class="input-group">
-                        <label>Video URL</label>
-                        <input type="text" id="video-url" placeholder="YouTube, Google Drive veya direkt video linki">
-                    </div>
-                </div>
-                
-                <!-- Local File Section (P2P) -->
-                <div id="local-file-section">
-                    <div class="input-group">
-                        <div class="file-drop-zone" id="file-drop-zone" onclick="document.getElementById('local-video-file').click()">
-                            <div>📁 Dosya seçmek için tıklayın veya sürükleyip bırakın</div>
-                            <div style="font-size: 12px; opacity: 0.7; margin-top: 8px;">MP4, WebM, MKV desteklenir</div>
-                            <input type="file" id="local-video-file" accept="video/*">
-                            <div id="selected-file-name"></div>
-                        </div>
-                    </div>
-                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 15px;">
-                        ⚡ P2P: Video dosyanız doğrudan arkadaşlarınıza aktarılır. Tarayıcı açık kalmalıdır.
-                    </div>
+                    <label>Video URL</label>
+                    <input type="text" id="video-url" placeholder="YouTube, Google Drive veya direkt video linki">
                 </div>
                 
                 <div class="input-group">
@@ -445,15 +321,6 @@
     
     <!-- Buffer Countdown -->
     <div id="buffer-countdown"></div>
-    
-    <!-- P2P Status -->
-    <div id="p2p-status">
-        <div id="p2p-status-text">P2P Bağlantısı...</div>
-        <div id="p2p-progress-bar">
-            <div id="p2p-progress-fill"></div>
-        </div>
-        <div id="p2p-stats" style="margin-top: 6px; font-size: 11px; opacity: 0.8;"></div>
-    </div>
     
     <!-- A-Frame Scene -->
     <a-scene vr-mode-ui="enabled: true" loading-screen="enabled: false">
@@ -583,20 +450,6 @@ const firebaseConfig = {
 
         // ✅ Owner transfer tracking
         let ownerTransferInProgress = false;
-
-        // ==================== P2P WebTorrent STATE ====================
-        let p2pClient = null;
-        let currentTorrent = null;
-        let selectedLocalFile = null;
-        let currentVideoSourceType = 'url'; // 'url' veya 'p2p'
-        let p2pUpdateInterval = null;
-        
-        // WebTorrent Tracker URLs
-        const WEBTORRENT_TRACKERS = [
-            'wss://tracker.btorrent.xyz',
-            'wss://tracker.openwebtorrent.com',
-            'wss://tracker.webtorrent.dev'
-        ];
 
 // ==================== ADAPTIVE STREAMING (ABR) ====================
 let hlsInstance = null;
@@ -1001,12 +854,6 @@ function executeSeek(direction, totalAmount) {
                 seekDebounceTimer = null;
             }
             
-            // P2P update interval temizle
-            if (p2pUpdateInterval) {
-                clearInterval(p2pUpdateInterval);
-                p2pUpdateInterval = null;
-            }
-            
             activeIntervals.forEach(id => clearInterval(id));
             activeIntervals.length = 0;
         }
@@ -1081,278 +928,10 @@ function executeSeek(direction, totalAmount) {
             }
         }
         
-        // ==================== P2P WebTorrent FUNCTIONS ====================
-        
-        // Video source tab değiştirme
-        function switchVideoSourceTab(tab) {
-            currentVideoSourceType = tab;
-            
-            const tabUrl = getCachedElement('tab-url');
-            const tabLocal = getCachedElement('tab-local');
-            const urlSection = getCachedElement('url-section');
-            const localSection = getCachedElement('local-file-section');
-            
-            if (tab === 'url') {
-                tabUrl.classList.add('active');
-                tabLocal.classList.remove('active');
-                urlSection.classList.remove('hidden-tab');
-                localSection.classList.remove('active');
-            } else {
-                tabUrl.classList.remove('active');
-                tabLocal.classList.add('active');
-                urlSection.classList.add('hidden-tab');
-                localSection.classList.add('active');
-            }
-        }
-        
-        // P2P Client başlatma
-        function initP2PClient() {
-            if (p2pClient) return p2pClient;
-            
-            try {
-                p2pClient = new WebTorrent();
-                
-                p2pClient.on('error', (err) => {
-                    console.error('WebTorrent error:', err);
-                    updateP2PStatus('❌ P2P Hatası: ' + err.message, 0);
-                });
-                
-                debugLog('✅ WebTorrent client initialized');
-                return p2pClient;
-            } catch (e) {
-                console.error('WebTorrent init error:', e);
-                return null;
-            }
-        }
-        
-        // P2P Client temizleme
-        function destroyP2PClient() {
-            if (p2pUpdateInterval) {
-                clearInterval(p2pUpdateInterval);
-                p2pUpdateInterval = null;
-            }
-            
-            if (currentTorrent) {
-                try {
-                    currentTorrent.destroy();
-                } catch (e) {}
-                currentTorrent = null;
-            }
-            
-            if (p2pClient) {
-                try {
-                    p2pClient.destroy();
-                } catch (e) {}
-                p2pClient = null;
-            }
-            
-            hideP2PStatus();
-            debugLog('🧹 P2P client destroyed');
-        }
-        
-        // Lokal dosyayı seed et (yayıncı için)
-        async function seedLocalVideo(file) {
-            return new Promise((resolve, reject) => {
-                if (!file) {
-                    reject(new Error('Dosya seçilmedi'));
-                    return;
-                }
-                
-                initP2PClient();
-                
-                if (!p2pClient) {
-                    reject(new Error('WebTorrent başlatılamadı'));
-                    return;
-                }
-                
-                showP2PStatus('📤 Torrent oluşturuluyor...', 0);
-                
-                const opts = {
-                    announce: WEBTORRENT_TRACKERS,
-                    name: file.name
-                };
-                
-                p2pClient.seed(file, opts, (torrent) => {
-                    currentTorrent = torrent;
-                    
-                    debugLog('✅ Seeding started:', torrent.magnetURI);
-                    updateP2PStatus('📤 Paylaşılıyor: ' + torrent.numPeers + ' peer', 100);
-                    
-                    // Periyodik güncelleme
-                    p2pUpdateInterval = setInterval(() => {
-                        if (currentTorrent) {
-                            const stats = `📤 ${formatBytes(currentTorrent.uploadSpeed)}/s | 👥 ${currentTorrent.numPeers} peer`;
-                            updateP2PStats(stats);
-                        }
-                    }, 1000);
-                    trackInterval(p2pUpdateInterval);
-                    
-                    resolve(torrent.magnetURI);
-                });
-                
-                // Timeout
-                setTimeout(() => {
-                    if (!currentTorrent) {
-                        reject(new Error('Torrent oluşturma zaman aşımı'));
-                    }
-                }, 30000);
-            });
-        }
-        
-        // Magnet URI'den video indir (izleyici için)
-        async function joinP2PTorrent(magnetURI) {
-            return new Promise((resolve, reject) => {
-                if (!magnetURI) {
-                    reject(new Error('Magnet URI bulunamadı'));
-                    return;
-                }
-                
-                initP2PClient();
-                
-                if (!p2pClient) {
-                    reject(new Error('WebTorrent başlatılamadı'));
-                    return;
-                }
-                
-                showP2PStatus('🔍 Torrent aranıyor...', 0);
-                
-                const opts = {
-                    announce: WEBTORRENT_TRACKERS
-                };
-                
-                p2pClient.add(magnetURI, opts, (torrent) => {
-                    currentTorrent = torrent;
-                    
-                    debugLog('✅ Torrent joined:', torrent.infoHash);
-                    debugLog('📁 Files:', torrent.files.map(f => f.name));
-                    
-                    // Video dosyasını bul
-                    const videoFile = torrent.files.find(file => {
-                        const ext = file.name.split('.').pop().toLowerCase();
-                        return ['mp4', 'webm', 'mkv', 'ogv', 'mov', 'avi'].includes(ext);
-                    });
-                    
-                    if (!videoFile) {
-                        reject(new Error('Video dosyası bulunamadı'));
-                        return;
-                    }
-                    
-                    // Progress güncelleme
-                    p2pUpdateInterval = setInterval(() => {
-                        if (currentTorrent) {
-                            const progress = Math.round(currentTorrent.progress * 100);
-                            const stats = `📥 ${formatBytes(currentTorrent.downloadSpeed)}/s | 📤 ${formatBytes(currentTorrent.uploadSpeed)}/s | 👥 ${currentTorrent.numPeers}`;
-                            updateP2PStatus(`📥 İndiriliyor: %${progress}`, progress);
-                            updateP2PStats(stats);
-                            
-                            if (currentTorrent.progress === 1) {
-                                updateP2PStatus('✅ Tamamlandı - Paylaşılıyor', 100);
-                            }
-                        }
-                    }, 500);
-                    trackInterval(p2pUpdateInterval);
-                    
-                    resolve(videoFile);
-                });
-                
-                // Timeout
-                setTimeout(() => {
-                    if (!currentTorrent) {
-                        reject(new Error('Torrent bağlantı zaman aşımı'));
-                    }
-                }, 60000);
-            });
-        }
-        
-        // P2P Status UI
-        function showP2PStatus(text, progress) {
-            const statusEl = getCachedElement('p2p-status');
-            const textEl = getCachedElement('p2p-status-text');
-            const fillEl = getCachedElement('p2p-progress-fill');
-            
-            if (statusEl) statusEl.style.display = 'block';
-            if (textEl) textEl.textContent = text;
-            if (fillEl) fillEl.style.width = progress + '%';
-        }
-        
-        function updateP2PStatus(text, progress) {
-            const textEl = getCachedElement('p2p-status-text');
-            const fillEl = getCachedElement('p2p-progress-fill');
-            
-            if (textEl) textEl.textContent = text;
-            if (fillEl) fillEl.style.width = progress + '%';
-        }
-        
-        function updateP2PStats(stats) {
-            const statsEl = getCachedElement('p2p-stats');
-            if (statsEl) statsEl.textContent = stats;
-        }
-        
-        function hideP2PStatus() {
-            const statusEl = getCachedElement('p2p-status');
-            if (statusEl) statusEl.style.display = 'none';
-        }
-        
-        function formatBytes(bytes) {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-        }
-        
-        // Dosya seçme event'leri
-        function setupFileInput() {
-            const fileInput = document.getElementById('local-video-file');
-            const dropZone = document.getElementById('file-drop-zone');
-            const fileNameDisplay = document.getElementById('selected-file-name');
-            
-            if (fileInput) {
-                fileInput.addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        selectedLocalFile = file;
-                        if (fileNameDisplay) {
-                            fileNameDisplay.textContent = '✅ ' + file.name + ' (' + formatBytes(file.size) + ')';
-                        }
-                        debugLog('📁 File selected:', file.name, file.size);
-                    }
-                });
-            }
-            
-            if (dropZone) {
-                dropZone.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    dropZone.classList.add('dragover');
-                });
-                
-                dropZone.addEventListener('dragleave', () => {
-                    dropZone.classList.remove('dragover');
-                });
-                
-                dropZone.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    dropZone.classList.remove('dragover');
-                    
-                    const file = e.dataTransfer.files[0];
-                    if (file && file.type.startsWith('video/')) {
-                        selectedLocalFile = file;
-                        if (fileNameDisplay) {
-                            fileNameDisplay.textContent = '✅ ' + file.name + ' (' + formatBytes(file.size) + ')';
-                        }
-                        debugLog('📁 File dropped:', file.name, file.size);
-                    }
-                });
-            }
-        }
-        
         // ✅ FIX #7 & #8: hashchange ve onDisconnect temizleme
         function fullCleanup() {
             // ✅ ABR cleanup
             destroyAdaptiveStreaming();
-            
-            // ✅ P2P cleanup
-            destroyP2PClient();
 
             // Flush pending Firebase updates first
             if (firebaseBatchTimeout) {
@@ -1415,8 +994,6 @@ function executeSeek(direction, totalAmount) {
             isJoiningRoom = false;
             isHardSeeking = false; // ✅ FIX: Reset isHardSeeking
             ownerTransferInProgress = false;
-            selectedLocalFile = null;
-            currentVideoSourceType = 'url';
             
             debugLog('🧹 Full cleanup completed');
         }
@@ -1491,21 +1068,8 @@ function executeSeek(direction, totalAmount) {
             const screenSize = getCachedElement('screen-size').value;
             const environment = getCachedElement('environment').value;
             
-            // P2P modu kontrolü
-            const isP2PMode = currentVideoSourceType === 'local';
-            
-            if (!roomName) {
-                alert('Lütfen oda adı giriniz!');
-                return;
-            }
-            
-            if (!isP2PMode && !videoUrl) {
-                alert('Lütfen video URL giriniz!');
-                return;
-            }
-            
-            if (isP2PMode && !selectedLocalFile) {
-                alert('Lütfen bir video dosyası seçiniz!');
+            if (!roomName || !videoUrl) {
+                alert('Lütfen oda adı ve video URL giriniz!');
                 return;
             }
             
@@ -1513,29 +1077,13 @@ function executeSeek(direction, totalAmount) {
                 const userCredential = await auth.signInAnonymously();
                 currentUser = userCredential.user;
                 
-                let finalVideoUrl = videoUrl;
-                let magnetURI = null;
-                
-                // P2P modunda dosyayı seed et
-                if (isP2PMode && selectedLocalFile) {
-                    try {
-                        magnetURI = await seedLocalVideo(selectedLocalFile);
-                        finalVideoUrl = 'p2p://' + magnetURI; // P2P marker
-                        debugLog('✅ Magnet URI created:', magnetURI);
-                    } catch (e) {
-                        console.error('Seed error:', e);
-                        alert('Video paylaşımı başlatılamadı: ' + e.message);
-                        return;
-                    }
-                }
-                
                 const roomRef = db.ref('rooms').push();
                 currentRoomId = roomRef.key;
                 
-                const roomData = {
+                await roomRef.set({
                     name: roomName,
                     owner: currentUser.uid,
-                    videoUrl: finalVideoUrl,
+                    videoUrl: videoUrl,
                     screenSize: screenSize,
                     environment: environment,
                     createdAt: firebase.database.ServerValue.TIMESTAMP,
@@ -1545,18 +1093,7 @@ function executeSeek(direction, totalAmount) {
                         startTimestamp: 0,
                         lastUpdate: firebase.database.ServerValue.TIMESTAMP
                     }
-                };
-                
-                // P2P modunda magnet URI'yi ayrı kaydet
-                if (magnetURI) {
-                    roomData.p2p = {
-                        magnetURI: magnetURI,
-                        fileName: selectedLocalFile.name,
-                        fileSize: selectedLocalFile.size
-                    };
-                }
-                
-                await roomRef.set(roomData);
+                });
                 
                 await joinRoom(currentRoomId);
             } catch (error) {
@@ -1778,8 +1315,6 @@ function executeSeek(direction, totalAmount) {
             const bufferEl = getCachedElement('buffer-countdown');
             if (bufferEl) bufferEl.style.display = 'none';
             
-            hideP2PStatus();
-            
             isBuffering = false;
             bufferTargetTime = null;
             
@@ -1821,12 +1356,11 @@ function executeSeek(direction, totalAmount) {
                     roomList.innerHTML = '<p style="text-align: center; opacity: 0.7;">Aktif oda bulunamadı</p>';
                 } else {
                     rooms.forEach(room => {
-                        const isP2P = room.data.p2p && room.data.p2p.magnetURI;
                         const roomDiv = document.createElement('div');
                         roomDiv.className = 'room-item';
                         roomDiv.innerHTML = `
-                            <div class="room-name">${room.data.name} ${isP2P ? '🔗 P2P' : ''}</div>
-                            <div class="room-details">👥 ${room.viewers} izleyici ${isP2P ? '| 📁 ' + room.data.p2p.fileName : ''}</div>
+                            <div class="room-name">${room.data.name}</div>
+                            <div class="room-details">👥 ${room.viewers} izleyici</div>
                         `;
                         roomDiv.onclick = () => joinRoom(room.id);
                         roomList.appendChild(roomDiv);
@@ -1880,40 +1414,7 @@ function executeSeek(direction, totalAmount) {
         { event: 'error', handler: handleError }
     );
 
-    // P2P mi yoksa URL mi kontrol et
-    const isP2PRoom = currentRoomData.p2p && currentRoomData.p2p.magnetURI;
-    
-    if (isP2PRoom && !isRoomOwner) {
-        // İzleyici: P2P'den indir
-        try {
-            showP2PStatus('🔍 P2P bağlantısı kuruluyor...', 0);
-            const videoFile = await joinP2PTorrent(currentRoomData.p2p.magnetURI);
-            
-            // WebTorrent file'ı video element'e bağla
-            videoFile.renderTo(videoElement, { autoplay: false }, (err) => {
-                if (err) {
-                    console.error('Render error:', err);
-                    updateP2PStatus('❌ Video yüklenemedi', 0);
-                } else {
-                    debugLog('✅ P2P video rendered to element');
-                }
-            });
-        } catch (e) {
-            console.error('P2P join error:', e);
-            updateP2PStatus('❌ P2P hatası: ' + e.message, 0);
-        }
-    } else if (isP2PRoom && isRoomOwner) {
-        // Sahip: Zaten seed ediyoruz, lokal dosyayı kullan
-        if (selectedLocalFile) {
-            const objectURL = URL.createObjectURL(selectedLocalFile);
-            currentVideoObjectURL = objectURL;
-            videoElement.src = objectURL;
-            showP2PStatus('📤 Paylaşılıyor...', 100);
-        }
-    } else {
-        // Normal URL modu
-        setupAdaptiveSource(currentRoomData.videoUrl);
-    }
+    setupAdaptiveSource(currentRoomData.videoUrl);
 
     const playListener = () => {
         if (syncState) return;
@@ -3022,9 +2523,8 @@ AFRAME.registerComponent('video-texture-fix', {
 
         // ==================== INIT ====================
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🎬 VR Cinema ULTRA - Optimized v3.7 (P2P WebTorrent Support)');
+            console.log('🎬 VR Cinema ULTRA - Optimized v3.6 (Memory Leak Fixes)');
             updateQualityCapUI();
-            setupFileInput(); // P2P dosya seçim event'lerini kur
             
             const scene = document.querySelector('a-scene');
             if (scene) {

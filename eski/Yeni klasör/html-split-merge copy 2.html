@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Split/Merge Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: clamp(1.5em, 5vw, 2em);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: clamp(0.8em, 3vw, 0.9em);
+        }
+
+        .mode-selection {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .mode-card {
+            border: 3px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .mode-card:hover {
+            border-color: #667eea;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .mode-card.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+        }
+
+        .mode-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .mode-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .mode-desc {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .file-section {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .file-section.active {
+            display: block;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .file-input-label {
+            display: block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .file-input-label:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .split-options {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .split-options label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .split-options input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border 0.3s;
+        }
+
+        .split-options input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .process-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .process-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .process-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .result-box {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .result-box.success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+            display: block;
+        }
+
+        .result-box.error {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+            display: block;
+        }
+
+        .result-box.info {
+            background: #d1ecf1;
+            border: 2px solid #17a2b8;
+            color: #0c5460;
+            display: block;
+        }
+
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .result-list {
+            margin-top: 10px;
+            padding-left: 20px;
+        }
+
+        .result-list li {
+            margin: 5px 0;
+            word-break: break-word;
+        }
+
+        .back-btn {
+            margin-top: 20px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .back-btn:hover {
+            background: #5a6268;
+        }
+
+        .file-name {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f4f8;
+            border-radius: 5px;
+            font-size: 0.9em;
+            color: #333;
+            word-break: break-word;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            .mode-card {
+                padding: 20px;
+            }
+
+            .mode-icon {
+                font-size: 2.5em;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 HTML Split/Merge Tool</h1>
+        <p class="subtitle">HTML dosyalarını parçalara ayırın veya birleştirin</p>
+
+        <div id="modeSelection" class="mode-selection">
+            <div class="mode-card" onclick="selectMode('split')">
+                <div class="mode-icon">✂️</div>
+                <div class="mode-title">Split</div>
+                <div class="mode-desc">HTML'i CSS ve JS dosyalarına ayırıp ZIP olarak indir</div>
+            </div>
+            <div class="mode-card" onclick="selectMode('merge')">
+                <div class="mode-icon">🔗</div>
+                <div class="mode-title">Merge</div>
+                <div class="mode-desc">CSS ve JS dosyalarını tek HTML'de birleştir</div>
+            </div>
+        </div>
+
+        <div id="splitSection" class="file-section">
+            <div class="file-input-wrapper">
+                <label for="splitHtmlFile" class="file-input-label">
+                    📄 HTML Dosyası Seç
+                </label>
+                <input type="file" id="splitHtmlFile" accept=".html,.htm" onchange="handleSplitFileSelect(event)">
+                <div id="splitFileName" class="file-name" style="display:none;"></div>
+            </div>
+
+            <div class="split-options">
+                <label for="jsPartCount">JS Kaç Parçaya Ayrılsın?</label>
+                <input type="number" id="jsPartCount" min="1" max="50" value="5">
+            </div>
+
+            <button class="process-btn" onclick="processSplit()" disabled id="splitBtn">
+                İşlemi Başlat
+            </button>
+
+            <button class="back-btn" onclick="resetMode()">← Geri Dön</button>
+        </div>
+
+        <div id="mergeSection" class="file-section">
+            <div class="file-input-wrapper">
+                <label for="mergeHtmlFile" class="file-input-label">
+                    📄 HTML Dosyası Seç
+                </label>
+                <input type="file" id="mergeHtmlFile" accept=".html,.htm" onchange="handleMergeFileSelect(event)">
+                <div id="mergeFileName" class="file-name" style="display:none;"></div>
+            </div>
+
+            <div class="file-input-wrapper">
+                <label for="mergeFolderInput" class="file-input-label" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                    📁 CSS/JS Klasörlerini Seç
+                </label>
+                <input type="file" id="mergeFolderInput" webkitdirectory directory multiple onchange="handleFolderSelect(event)">
+                <div id="folderInfo" class="file-name" style="display:none;"></div>
+            </div>
+
+            <button class="process-btn" onclick="processMerge()" disabled id="mergeBtn">
+                İşlemi Başlat
+            </button>
+
+            <button class="back-btn" onclick="resetMode()">← Geri Dön</button>
+        </div>
+
+        <div id="resultBox" class="result-box"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        let currentMode = null;
+        let selectedFile = null;
+        let folderFiles = {};
+
+        function selectMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-card').forEach(card => card.classList.remove('active'));
+            event.target.closest('.mode-card').classList.add('active');
+            
+            document.getElementById('modeSelection').style.display = 'none';
+            document.getElementById('resultBox').style.display = 'none';
+            
+            if (mode === 'split') {
+                document.getElementById('splitSection').classList.add('active');
+            } else {
+                document.getElementById('mergeSection').classList.add('active');
+            }
+        }
+
+        function resetMode() {
+            currentMode = null;
+            selectedFile = null;
+            folderFiles = {};
+            document.getElementById('modeSelection').style.display = 'grid';
+            document.getElementById('splitSection').classList.remove('active');
+            document.getElementById('mergeSection').classList.remove('active');
+            document.getElementById('resultBox').style.display = 'none';
+            document.getElementById('splitHtmlFile').value = '';
+            document.getElementById('mergeHtmlFile').value = '';
+            document.getElementById('mergeFolderInput').value = '';
+            document.getElementById('splitFileName').style.display = 'none';
+            document.getElementById('mergeFileName').style.display = 'none';
+            document.getElementById('folderInfo').style.display = 'none';
+            document.getElementById('splitBtn').disabled = true;
+            document.getElementById('mergeBtn').disabled = true;
+        }
+
+        function handleSplitFileSelect(event) {
+            selectedFile = event.target.files[0];
+            if (selectedFile) {
+                document.getElementById('splitFileName').textContent = 'Seçilen: ' + selectedFile.name;
+                document.getElementById('splitFileName').style.display = 'block';
+                document.getElementById('splitBtn').disabled = false;
+            }
+        }
+
+        function handleMergeFileSelect(event) {
+            selectedFile = event.target.files[0];
+            if (selectedFile) {
+                document.getElementById('mergeFileName').textContent = 'Seçilen: ' + selectedFile.name;
+                document.getElementById('mergeFileName').style.display = 'block';
+                updateMergeButton();
+            }
+        }
+
+        function handleFolderSelect(event) {
+            const files = event.target.files;
+            folderFiles = {};
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const path = file.webkitRelativePath || file.name;
+                folderFiles[path] = file;
+            }
+            
+            const fileCount = Object.keys(folderFiles).length;
+            document.getElementById('folderInfo').textContent = fileCount + ' dosya yüklendi';
+            document.getElementById('folderInfo').style.display = 'block';
+            updateMergeButton();
+        }
+
+        function updateMergeButton() {
+            const hasHtml = selectedFile !== null;
+            const hasFolder = Object.keys(folderFiles).length > 0;
+            document.getElementById('mergeBtn').disabled = !(hasHtml && hasFolder);
+        }
+
+        function showResult(type, title, message, list) {
+            list = list || [];
+            const resultBox = document.getElementById('resultBox');
+            resultBox.className = 'result-box ' + type;
+            
+            let html = '<div class="result-title">' + title + '</div><p>' + message + '</p>';
+            if (list.length > 0) {
+                html += '<ul class="result-list">';
+                list.forEach(function(item) {
+                    html += '<li>' + item + '</li>';
+                });
+                html += '</ul>';
+            }
+            
+            resultBox.innerHTML = html;
+        }
+
+        async function processSplit() {
+            if (!selectedFile) return;
+            
+            const jsCount = parseInt(document.getElementById('jsPartCount').value);
+            if (jsCount < 1 || jsCount > 50) {
+                showResult('error', '❌ Hata', 'JS parça sayısı 1-50 arasında olmalıdır.');
+                return;
+            }
+
+            document.getElementById('splitBtn').disabled = true;
+            showResult('info', '⏳ İşleniyor...', 'HTML dosyası işleniyor, lütfen bekleyin...');
+
+            try {
+                const htmlText = await selectedFile.text();
+                const fileName = selectedFile.name.replace(/\.(html|htm)$/i, '');
+                
+                const result1 = extractStyles(htmlText);
+                const htmlWithoutStyles = result1.html;
+                const css = result1.css;
+                
+                const result2 = extractBodyScripts(htmlWithoutStyles);
+                const finalHtml = result2.html;
+                const js = result2.js;
+                
+                const jsUnits = splitJsIntoUnits(js);
+                const jsFiles = packUnitsIntoFiles(jsUnits, jsCount);
+                const htmlWithLink = ensureStylesLinkInHead(finalHtml);
+                
+                const jsFilenames = jsFiles.map(function(_, i) {
+                    return 'js' + (i + 1) + '.js';
+                });
+                const loaderScript = buildLoaderScript(jsFilenames);
+                const htmlFinal = addLoaderToBody(htmlWithLink, loaderScript);
+                
+                const zip = new JSZip();
+                zip.file(fileName + '.html', htmlFinal);
+                zip.file('styles.css', css || '');
+                
+                const jsFolder = zip.folder('js');
+                jsFiles.forEach(function(content, i) {
+                    jsFolder.file('js' + (i + 1) + '.js', content || '');
+                });
+                
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                downloadBlob(zipBlob, fileName + '_split.zip');
+                
+                showResult('success', '✅ Başarılı!', 'Dosyalar başarıyla oluşturuldu ve indirildi.', [
+                    fileName + '.html (güncellendi)',
+                    'styles.css',
+                    'js/ klasöründe ' + jsCount + ' dosya'
+                ]);
+            } catch (error) {
+                showResult('error', '❌ Hata', 'İşlem sırasında hata oluştu: ' + error.message);
+            }
+            
+            document.getElementById('splitBtn').disabled = false;
+        }
+
+        function extractStyles(html) {
+            const styleRegex = /(<style\b[^>]*>)(.*?)<\/style>/gis;
+            const cssParts = [];
+            
+            const newHtml = html.replace(styleRegex, function(match, openTag, content) {
+                if (content.trim()) {
+                    cssParts.push(content.trim());
+                }
+                return openTag + '<' + '/style>';
+            });
+            
+            return {
+                html: newHtml,
+                css: cssParts.join('\n\n')
+            };
+        }
+
+        function extractBodyScripts(html) {
+            const bodyRegex = /(<body\b[^>]*>)(.*?)(<\/body>)/is;
+            const bodyMatch = html.match(bodyRegex);
+            
+            if (!bodyMatch) {
+                const result = extractScriptsFromText(html);
+                return { html: result.html, js: result.js };
+            }
+            
+            const bodyOpen = bodyMatch[1];
+            const bodyContent = bodyMatch[2];
+            const bodyClose = bodyMatch[3];
+            
+            const result = extractScriptsFromText(bodyContent);
+            const newBodyContent = result.html;
+            const js = result.js;
+            
+            const newBody = bodyOpen + newBodyContent + bodyClose;
+            const finalHtml = html.substring(0, bodyMatch.index) + newBody + html.substring(bodyMatch.index + bodyMatch[0].length);
+            
+            return { html: finalHtml, js: js };
+        }
+
+        function extractScriptsFromText(text) {
+            const scriptRegex = /(<script\b[^>]*>)(.*?)<\/script>/gis;
+            const jsParts = [];
+            
+            const newText = text.replace(scriptRegex, function(match, openTag, content) {
+                if (content.trim()) {
+                    jsParts.push(content.trim());
+                }
+                return openTag + '<' + '/script>';
+            });
+            
+            return {
+                html: newText,
+                js: jsParts.join('\n\n')
+            };
+        }
+
+        function splitJsIntoUnits(js) {
+            if (!js.trim()) return [];
+            
+            const lines = js.split('\n');
+            const units = [];
+            let current = [];
+            let braceDepth = 0;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                current.push(line);
+                
+                for (let j = 0; j < line.length; j++) {
+                    const char = line[j];
+                    if (char === '{') braceDepth++;
+                    if (char === '}') braceDepth = Math.max(0, braceDepth - 1);
+                }
+                
+                const trimmed = line.trim();
+                if (braceDepth === 0 && (trimmed.endsWith(';') || trimmed.endsWith('}'))) {
+                    units.push(current.join('\n') + '\n');
+                    current = [];
+                }
+            }
+            
+            if (current.length > 0) {
+                units.push(current.join('\n') + '\n');
+            }
+            
+            const merged = [];
+            let buffer = '';
+            for (let i = 0; i < units.length; i++) {
+                const unit = units[i];
+                if (unit.trim().length < 30) {
+                    buffer += unit;
+                } else {
+                    if (buffer) {
+                        merged.push(buffer);
+                        buffer = '';
+                    }
+                    merged.push(unit);
+                }
+            }
+            if (buffer) merged.push(buffer);
+            
+            return merged.filter(function(u) {
+                return u.trim();
+            });
+        }
+
+        function packUnitsIntoFiles(units, n) {
+            if (n <= 1) return [units.join('')];
+            if (units.length === 0) {
+                const arr = [];
+                for (let i = 0; i < n; i++) arr.push('');
+                return arr;
+            }
+            
+            const total = units.reduce(function(sum, u) {
+                return sum + u.length;
+            }, 0);
+            const target = Math.max(1, Math.floor(total / n));
+            
+            const files = [];
+            let current = '';
+            
+            for (let i = 0; i < units.length; i++) {
+                const unit = units[i];
+                if (files.length < n - 1 && current && (current.length + unit.length > target)) {
+                    files.push(current);
+                    current = '';
+                }
+                current += unit;
+            }
+            files.push(current);
+            
+            while (files.length < n) files.push('');
+            if (files.length > n) {
+                const tail = files.slice(n - 1).join('');
+                return files.slice(0, n - 1).concat([tail]);
+            }
+            
+            return files;
+        }
+
+        function buildLoaderScript(jsFilenames) {
+            let script = '<script>\n';
+            script += 'const v = new Date().getTime();\n';
+            for (let i = 0; i < jsFilenames.length; i++) {
+                const fn = jsFilenames[i];
+                script += 'document.write(\'<script src="js/' + fn + '?v=\' + v + \'"><\\/script>\');\n';
+            }
+            script += '<' + '/script>';
+            return script;
+        }
+
+        function ensureStylesLinkInHead(html) {
+            const linkTag = '<link rel="stylesheet" href="styles.css">';
+            
+            if (/<link\b[^>]*href=["']styles\.css["']/i.test(html)) {
+                return html;
+            }
+            
+            const headRegex = /(<head\b[^>]*>)(.*?)(<\/head>)/is;
+            const headMatch = html.match(headRegex);
+            
+            if (headMatch) {
+                const newHead = headMatch[1] + headMatch[2].trimEnd() + '\n' + linkTag + '\n' + headMatch[3];
+                return html.substring(0, headMatch.index) + newHead + html.substring(headMatch.index + headMatch[0].length);
+            }
+            
+            const htmlCloseMatch = html.match(/<\/html\s*>/i);
+            if (htmlCloseMatch) {
+                return html.substring(0, htmlCloseMatch.index) + '\n' + linkTag + '\n' + html.substring(htmlCloseMatch.index);
+            }
+            
+            return linkTag + '\n' + html;
+        }
+
+        function addLoaderToBody(html, loader) {
+            const bodyRegex = /(<body\b[^>]*>)(.*?)(<\/body>)/is;
+            const bodyMatch = html.match(bodyRegex);
+            
+            if (bodyMatch) {
+                const bodyContent = bodyMatch[2];
+                if (bodyContent.indexOf(loader.trim()) === -1) {
+                    const newBody = bodyMatch[1] + bodyContent.trimEnd() + '\n\n' + loader + '\n' + bodyMatch[3];
+                    return html.substring(0, bodyMatch.index) + newBody + html.substring(bodyMatch.index + bodyMatch[0].length);
+                }
+            } else {
+                return html.trimEnd() + '\n\n' + loader + '\n';
+            }
+            
+            return html;
+        }
+
+        async function processMerge() {
+            if (!selectedFile || Object.keys(folderFiles).length === 0) return;
+            
+            document.getElementById('mergeBtn').disabled = true;
+            showResult('info', '⏳ İşleniyor...', 'HTML dosyası birleştiriliyor, lütfen bekleyin...');
+
+            try {
+                const htmlText = await selectedFile.text();
+                const fileName = selectedFile.name.replace(/\.(html|htm)$/i, '');
+                
+                let mergedHtml = htmlText;
+                const processedFiles = [];
+                const errors = [];
+                
+                // 1. CSS link'lerini işle
+                const linkRegex = /<link\b[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
+                let match;
+                const cssReplacements = [];
+                
+                while ((match = linkRegex.exec(htmlText)) !== null) {
+                    const href = match[1];
+                    if (isRelativePath(href)) {
+                        const fileContent = await findFileInFolder(href);
+                        if (fileContent) {
+                            cssReplacements.push({
+                                original: match[0],
+                                replacement: '<!-- ' + match[0] + ' -->\n<style>\n' + fileContent + '\n<' + '/style>'
+                            });
+                            processedFiles.push(href);
+                        } else {
+                            errors.push('CSS bulunamadı: ' + href);
+                        }
+                    }
+                }
+                
+                for (let i = 0; i < cssReplacements.length; i++) {
+                    const repl = cssReplacements[i];
+                    mergedHtml = mergedHtml.replace(repl.original, repl.replacement);
+                }
+                
+                // 2. Normal script src'lerini işle
+                const scriptRegex = /<script\b[^>]*src=["']([^"']+)["'][^>]*><\/script>/gi;
+                const jsReplacements = [];
+                
+                scriptRegex.lastIndex = 0;
+                
+                while ((match = scriptRegex.exec(htmlText)) !== null) {
+                    const src = match[1];
+                    if (isRelativePath(src)) {
+                        const fileContent = await findFileInFolder(src);
+                        if (fileContent) {
+                            jsReplacements.push({
+                                original: match[0],
+                                replacement: '<!-- ' + match[0] + ' -->\n<script>\n' + fileContent + '\n<' + '/script>'
+                            });
+                            processedFiles.push(src);
+                        } else {
+                            errors.push('JS bulunamadı: ' + src);
+                        }
+                    }
+                }
+                
+                for (let i = 0; i < jsReplacements.length; i++) {
+                    const repl = jsReplacements[i];
+                    mergedHtml = mergedHtml.replace(repl.original, repl.replacement);
+                }
+                
+                // 3. document.write ile yüklenen scriptleri işle
+                const loaderScripts = extractDocumentWriteScripts(mergedHtml);
+                
+                for (let i = 0; i < loaderScripts.length; i++) {
+                    const loaderInfo = loaderScripts[i];
+                    let replacement = '<!-- ORIGINAL LOADER:\n' + loaderInfo.fullScript + '\n-->\n\n';
+                    
+                    for (let j = 0; j < loaderInfo.sources.length; j++) {
+                        const src = loaderInfo.sources[j];
+                        const fileContent = await findFileInFolder(src);
+                        if (fileContent) {
+                            replacement += '<!-- ' + src + ' -->\n<script>\n' + fileContent + '\n<' + '/script>\n\n';
+                            processedFiles.push(src);
+                        } else {
+                            errors.push('Loader JS bulunamadı: ' + src);
+                        }
+                    }
+                    
+                    mergedHtml = mergedHtml.replace(loaderInfo.fullScript, replacement);
+                }
+                
+                const blob = new Blob([mergedHtml], { type: 'text/html;charset=utf-8' });
+                downloadBlob(blob, fileName + '_merged.html');
+                
+                const resultList = [processedFiles.length + ' dosya birleştirildi'].concat(processedFiles).concat(errors);
+                
+                showResult(
+                    errors.length > 0 ? 'info' : 'success',
+                    errors.length > 0 ? '⚠️ Kısmen Başarılı' : '✅ Başarılı!',
+                    errors.length > 0 
+                        ? 'Bazı dosyalar bulunamadı ancak işlem tamamlandı.'
+                        : 'Tüm dosyalar başarıyla birleştirildi.',
+                    resultList
+                );
+            } catch (error) {
+                showResult('error', '❌ Hata', 'İşlem sırasında hata oluştu: ' + error.message);
+            }
+            
+            document.getElementById('mergeBtn').disabled = false;
+        }
+
+        function extractDocumentWriteScripts(html) {
+            const loaders = [];
+            const scriptRegex = /<script\b[^>]*>(.*?)<\/script>/gis;
+            let match;
+            
+            while ((match = scriptRegex.exec(html)) !== null) {
+                const scriptContent = match[1];
+                const fullScript = match[0];
+                
+                const writeRegex = /document\.write\s*\(\s*['"]<script\s+src=["']([^"']+)["'][^>]*><\\\/script>["']\s*\)/gi;
+                const sources = [];
+                let writeMatch;
+                
+                while ((writeMatch = writeRegex.exec(scriptContent)) !== null) {
+                    const src = writeMatch[1];
+                    if (isRelativePath(src)) {
+                        sources.push(src);
+                    }
+                }
+                
+                if (sources.length > 0) {
+                    loaders.push({
+                        fullScript: fullScript,
+                        sources: sources
+                    });
+                }
+            }
+            
+            return loaders;
+        }
+
+        async function findFileInFolder(path) {
+            // Tam path ile ara
+            if (folderFiles[path]) {
+                return await folderFiles[path].text();
+            }
+        
+            // Dosya adı ile ara (path'in son kısmı)
+            const fileName = path.split('/').pop();
+            for (let filePath in folderFiles) {
+                if (filePath.endsWith(fileName) || filePath.endsWith(path)) {
+                    return await folderFiles[filePath].text();
+                }
+            }
+            
+            return null;
+        }
+
+        function isRelativePath(path) {
+            return !path.startsWith('http://') && 
+                   !path.startsWith('https://') && 
+                   !path.startsWith('//') &&
+                   !path.startsWith('data:');
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>

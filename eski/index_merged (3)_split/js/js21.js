@@ -1,0 +1,28 @@
+        
+        function executePause() {
+            if (!videoElement) return;
+            
+            lastCommandSource = 'self';
+            
+            videoElement.pause();
+            
+            const currentPos = videoElement.currentTime;
+            
+            const updates = {
+                'videoState/isPlaying': false,
+                'videoState/currentTime': currentPos,
+                'videoState/startTimestamp': getServerTime(),
+                'videoState/lastUpdate': firebase.database.ServerValue.TIMESTAMP,
+                'keyframes': null,
+                'syncState': null
+            };
+            
+            db.ref('rooms/' + currentRoomId).update(updates).then(() => {
+                debugLog('⏸️ Pause broadcasted, keyframes/syncState cleared');
+            }).catch(err => console.warn('Pause update error:', err));
+            
+            // ✅ FIX: Timeout'u track et
+            trackTimeout(setTimeout(() => {
+                lastCommandSource = null;
+            }, 300));
+        }

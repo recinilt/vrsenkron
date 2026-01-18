@@ -1,0 +1,253 @@
+* {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        #ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.95);
+            transition: opacity 0.3s;
+        }
+        
+        #ui-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .container {
+            max-width: 600px;
+            width: 90%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 16px;
+        }
+        
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        #room-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .room-item {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .room-item:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        
+        .room-name {
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .room-details {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        #vr-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 500;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            display: none;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        #vr-controls button {
+            width: auto;
+            padding: 10px 20px;
+            margin: 0 5px;
+            font-size: 14px;
+        }
+        
+        #room-info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 500;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+            max-width: 300px;
+        }
+        
+        #sync-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 500;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 10px 15px;
+            border-radius: 10px;
+            display: none;
+            font-size: 14px;
+        }
+        
+        #p2p-status {
+            position: fixed;
+            bottom: 140px;
+            right: 20px;
+            z-index: 500;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 10px 12px;
+            border-radius: 10px;
+            display: none;
+            font-size: 12px;
+            line-height: 1.35;
+            min-width: 220px;
+        }
+
+        #p2p-progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 999px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        #p2p-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: rgba(74, 222, 128, 0.95);
+            transition: width .4s ease-in-out;
+        }
+
+        
+        .status-good { color: #4ade80; }
+        .status-warning { color: #fbbf24; }
+        .status-error { color: #f87171; }
+        
+        #buffer-countdown {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            z-index: 500;
+            background: rgba(255, 165, 0, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 8px 12px;
+            border-radius: 8px;
+            display: none;
+            font-size: 13px;
+            font-weight: 600;
+            color: white;
+        }
+        
+        #viewer-count {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        a-scene {
+            width: 100%;
+            height: 100vh;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 2em;
+            }
+            #vr-controls {
+                bottom: 10px;
+                padding: 10px;
+            }
+        }

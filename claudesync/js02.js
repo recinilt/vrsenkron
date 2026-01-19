@@ -60,7 +60,7 @@
         let p2pClient = null;
         let currentTorrent = null;
         let selectedLocalFile = null;
-        let currentVideoSourceType = 'url'; // 'url' veya 'p2p'
+        let currentVideoSourceType = 'url'; // 'url', 'local' veya 'youtube'
         let p2pUpdateInterval = null;
         
         // ✅ YENİ: P2P download tamamlandı mı?
@@ -96,3 +96,12 @@ let pendingOwnershipRequest = null;
 let currentRequestModal = null;
 const OWNERSHIP_REQUEST_TIMEOUT = 60000; // 60 saniye
 const OWNERSHIP_REQUEST_COOLDOWN = 120000; // 2 dakika
+
+// ==================== YOUTUBE STATE ====================
+let ytPlayer = null;
+let ytPlayerReady = false;
+let isYouTubeMode = false;
+let youtubeVideoId = null;
+let ytApiLoaded = false;
+let ytPlayerStateInterval = null;
+let lastYTSyncTime = 0;

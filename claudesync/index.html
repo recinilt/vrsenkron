@@ -40,7 +40,8 @@
                     <label>Video Kaynağı</label>
                     <div class="video-source-tabs">
                         <button type="button" id="tab-url" class="active" onclick="switchVideoSourceTab('url')">🔗 URL</button>
-                        <button type="button" id="tab-local" onclick="switchVideoSourceTab('local')">📁 Lokal Dosya (P2P)</button>
+                        <button type="button" id="tab-local" onclick="switchVideoSourceTab('local')">📁 P2P</button>
+                        <button type="button" id="tab-youtube" onclick="switchVideoSourceTab('youtube')">▶️ YouTube</button>
                     </div>
                 </div>
                 
@@ -48,7 +49,7 @@
                 <div id="url-section">
                     <div class="input-group">
                         <label>Video URL</label>
-                        <input type="text" id="video-url" placeholder="YouTube, Google Drive veya direkt video linki">
+                        <input type="text" id="video-url" placeholder="MP4, HLS (.m3u8), DASH (.mpd) linki">
                     </div>
                 </div>
                 
@@ -64,6 +65,22 @@
                     </div>
                     <div style="font-size: 12px; opacity: 0.8; margin-bottom: 15px;">
                         ⚡ P2P: Video dosyanız doğrudan arkadaşlarınıza aktarılır. Tarayıcı açık kalmalıdır.
+                    </div>
+                </div>
+                
+                <!-- YouTube Section -->
+                <div id="youtube-section">
+                    <div class="input-group">
+                        <label>YouTube URL</label>
+                        <input type="text" id="youtube-url" placeholder="https://www.youtube.com/watch?v=VIDEO_ID">
+                    </div>
+                    <div class="youtube-info-box">
+                        <div>⚠️ <strong>YouTube Modu Bilgisi:</strong></div>
+                        <ul>
+                            <li>VR desteklenmez (sadece 2D izleme)</li>
+                            <li>Senkronize watch party çalışır</li>
+                            <li>Bazı videolar gömülmeye izin vermeyebilir</li>
+                        </ul>
                     </div>
                 </div>
                 
@@ -216,6 +233,7 @@ document.write('<script src="js40.js?v=' + v + '"><\/script>');
 document.write('<script src="js41.js?v=' + v + '"><\/script>');
 document.write('<script src="js42.js?v=' + v + '"><\/script>');
 document.write('<script src="js43.js?v=' + v + '"><\/script>');
+document.write('<script src="js44.js?v=' + v + '"><\/script>');
 </script>
 </body> 
 </html>

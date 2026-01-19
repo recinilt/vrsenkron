@@ -1,0 +1,73 @@
+        
+        // ✅ FIX #4: executeSync - seek/play yarışmasını önle
+        function executeSync(state) {
+            if (!videoElement || !state) return;
+            
+            // ✅ FIX: syncedSeekPosition NaN/Infinity validation
+            if (!isFinite(state.syncedSeekPosition) || isNaN(state.syncedSeekPosition)) {
+                debugLog('⚠️ Invalid syncedSeekPosition, aborting sync');
+                clearSyncState();
+                return;
+            }
+            
+            debugLog('🎬 Executing sync at:', Date.now());
+            
+            // ✅ FIX #4: Önce seek, sonra seeked event'i bekle, sonra play
+            videoElement.currentTime = state.syncedSeekPosition;
+            videoElement.playbackRate = 1.0;
+            
+            // ✅ FIX: seeked listener'ı track et
+            let syncSeekCompleted = false;
+            
+            const onSeekedForSync = () => {
+                if (syncSeekCompleted) return;
+                syncSeekCompleted = true;
+                videoElement.removeEventListener('seeked', onSeekedForSync);
+                
+                videoElement.play().then(() => {
+                    debugLog('✅ Sync play successful');
+                    
+                    syncModeActive = false;
+                    
+                    if (isRoomOwner) {
+                        const serverTime = getServerTime();
+                        db.ref('rooms/' + currentRoomId + '/videoState').update({
+                            isPlaying: true,
+                            currentTime: state.syncedSeekPosition,
+                            startTimestamp: serverTime,
+                            lastUpdate: firebase.database.ServerValue.TIMESTAMP
+                        }).then(() => {
+                            // ✅ FIX: Timeout'u track et
+                            trackTimeout(setTimeout(() => {
+                                clearSyncState();
+                            }, 500));
+                        });
+                    } else {
+                        // ✅ FIX: Timeout'u track et
+                        trackTimeout(setTimeout(() => {
+                            clearSyncState();
+                        }, 1000));
+                    }
+                }).catch(error => {
+                    console.error('Sync play error:', error);
+                    // ✅ FIX: Timeout'u track et
+                    trackTimeout(setTimeout(() => {
+                        clearSyncState();
+                    }, 500));
+                });
+            };
+            
+            videoElement.addEventListener('seeked', onSeekedForSync);
+            
+            // ✅ FIX #4: Timeout fallback - track edildi
+            trackTimeout(setTimeout(() => {
+                if (!syncSeekCompleted) {
+                    syncSeekCompleted = true;
+                    videoElement.removeEventListener('seeked', onSeekedForSync);
+                    debugLog('⚠️ Sync seeked timeout, forcing play');
+                    videoElement.play().catch(() => {});
+                    syncModeActive = false;
+                    clearSyncState();
+                }
+            }, 3000));
+        }

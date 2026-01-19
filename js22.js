@@ -1,5 +1,4 @@
-        
-        async function showRoomList() {
+async function showRoomList() {
             try {
                 if (!auth.currentUser) {
                     await auth.signInAnonymously();
@@ -32,11 +31,24 @@
                 } else {
                     rooms.forEach(room => {
                         const isP2P = room.data.p2p && room.data.p2p.magnetURI;
+                        const isYouTube = room.data.youtube && room.data.youtube.videoId;
+                        
+                        let modeLabel = '';
+                        let modeDetails = '';
+                        
+                        if (isP2P) {
+                            modeLabel = '🔗 P2P';
+                            modeDetails = '| 📁 ' + room.data.p2p.fileName;
+                        } else if (isYouTube) {
+                            modeLabel = '▶️ YouTube';
+                            modeDetails = '| 📺 2D Watch Party';
+                        }
+                        
                         const roomDiv = document.createElement('div');
                         roomDiv.className = 'room-item';
                         roomDiv.innerHTML = `
-                            <div class="room-name">${room.data.name} ${isP2P ? '🔗 P2P' : ''}</div>
-                            <div class="room-details">👥 ${room.viewers} izleyici ${isP2P ? '| 📁 ' + room.data.p2p.fileName : ''}</div>
+                            <div class="room-name">${room.data.name} ${modeLabel}</div>
+                            <div class="room-details">👥 ${room.viewers} izleyici ${modeDetails}</div>
                         `;
                         roomDiv.onclick = () => joinRoom(room.id);
                         roomList.appendChild(roomDiv);

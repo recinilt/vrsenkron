@@ -1,20 +1,21 @@
-        
-        // ==================== ROOM MANAGEMENT ====================
+// ==================== ROOM MANAGEMENT ====================
         async function createRoom() {
             const roomName = getCachedElement('room-name').value.trim();
             const videoUrl = getCachedElement('video-url').value.trim();
+            const youtubeUrl = getCachedElement('youtube-url') ? getCachedElement('youtube-url').value.trim() : '';
             const screenSize = getCachedElement('screen-size').value;
             const environment = getCachedElement('environment').value;
             
-            // P2P modu kontrolü
+            // Mod kontrolü
             const isP2PMode = currentVideoSourceType === 'local';
+            const isYouTubeModeSelected = currentVideoSourceType === 'youtube';
             
             if (!roomName) {
                 alert('Lütfen oda adı giriniz!');
                 return;
             }
             
-            if (!isP2PMode && !videoUrl) {
+            if (!isP2PMode && !isYouTubeModeSelected && !videoUrl) {
                 alert('Lütfen video URL giriniz!');
                 return;
             }
@@ -24,12 +25,21 @@
                 return;
             }
             
+            if (isYouTubeModeSelected) {
+                const ytVideoId = extractYouTubeVideoId(youtubeUrl);
+                if (!ytVideoId) {
+                    alert('Geçerli bir YouTube linki giriniz!\n\nÖrnek: https://www.youtube.com/watch?v=VIDEO_ID');
+                    return;
+                }
+            }
+            
             try {
                 const userCredential = await auth.signInAnonymously();
                 currentUser = userCredential.user;
                 
                 let finalVideoUrl = videoUrl;
                 let magnetURI = null;
+                let ytVideoId = null;
                 
                 // P2P modunda dosyayı seed et
                 if (isP2PMode && selectedLocalFile) {
@@ -42,6 +52,13 @@
                         alert('Video paylaşımı başlatılamadı: ' + e.message);
                         return;
                     }
+                }
+                
+                // YouTube modunda video ID çıkar
+                if (isYouTubeModeSelected) {
+                    ytVideoId = extractYouTubeVideoId(youtubeUrl);
+                    finalVideoUrl = 'youtube://' + ytVideoId; // YouTube marker
+                    debugLog('✅ YouTube video ID:', ytVideoId);
                 }
                 
                 const roomRef = db.ref('rooms').push();
@@ -68,6 +85,14 @@
                         magnetURI: magnetURI,
                         fileName: selectedLocalFile.name,
                         fileSize: selectedLocalFile.size
+                    };
+                }
+                
+                // YouTube modunda video ID'yi ayrı kaydet
+                if (ytVideoId) {
+                    roomData.youtube = {
+                        videoId: ytVideoId,
+                        originalUrl: youtubeUrl
                     };
                 }
                 

@@ -1,6 +1,4 @@
-
-
-        function listenVideoState() {
+function listenVideoState() {
             const ref = db.ref(`rooms/${currentRoomId}/videoState`);
             trackListener(ref);
 
@@ -35,6 +33,14 @@
                     lastUpdate: newState.lastUpdate
                 };
                 currentRoomData.videoState = newState;
+
+                // ✅ YouTube modunda farklı işle
+                if (isYouTubeMode) {
+                    if (!isRoomOwner && ytPlayer && ytPlayerReady) {
+                        applyYouTubeVideoState(newState);
+                    }
+                    return;
+                }
 
                 if (!isRoomOwner) {
                     const now = Date.now();

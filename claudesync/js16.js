@@ -20,6 +20,11 @@
             if (typeof cleanupSpatialAudio === 'function') {
                 cleanupSpatialAudio();
             }
+            
+            // ✅ YENİ: YouTube player cleanup
+            if (typeof destroyYouTubePlayer === 'function') {
+                destroyYouTubePlayer();
+            }
 
             // Flush pending Firebase updates first
             if (firebaseBatchTimeout) {
@@ -92,6 +97,12 @@
             // ✅ YENİ: Ownership request değişkenlerini sıfırla
             lastOwnershipRequestTime = 0;
             pendingOwnershipRequest = null;
+            
+            // ✅ YENİ: YouTube değişkenlerini sıfırla
+            isYouTubeMode = false;
+            youtubeVideoId = null;
+            ytPlayerReady = false;
+            lastYTSyncTime = 0;
             
             debugLog('🧹 Full cleanup completed');
         }

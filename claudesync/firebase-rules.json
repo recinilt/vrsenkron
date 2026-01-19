@@ -42,6 +42,20 @@
           }
         },
         
+        "youtube": {
+          ".read": "auth != null",
+          ".write": "auth != null",
+          "videoId": {
+            ".validate": "newData.isString() && newData.val().length >= 11 && newData.val().length <= 20"
+          },
+          "originalUrl": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        
         "screenSize": {
           ".validate": "newData.isString() && (newData.val() === 'medium' || newData.val() === 'large' || newData.val() === 'imax')"
         },

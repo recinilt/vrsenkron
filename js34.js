@@ -1,5 +1,11 @@
 // ✅ FIX #5 & #6: syncVideo - main thread blokajı ve DOM thrashing azaltma
         function syncVideo() {
+            // ✅ YouTube modunda farklı sync kullan
+            if (isYouTubeMode) {
+                syncYouTubeVideo();
+                return;
+            }
+            
             // ✅ FIX: isHardSeeking kontrolü eklendi
             if (isRoomOwner || isSeeking || isHardSeeking) return;
             if (!videoElement || !currentRoomData || !currentRoomData.videoState) return;

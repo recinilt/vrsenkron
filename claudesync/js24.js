@@ -4,6 +4,17 @@
     const scene = document.querySelector('a-scene');
     const assets = document.querySelector('a-assets');
 
+    // ✅ YouTube modu kontrolü
+    isYouTubeMode = checkYouTubeMode();
+    
+    if (isYouTubeMode) {
+        // YouTube 2D modu - VR yok
+        debugLog('🎬 YouTube mode detected - switching to 2D');
+        await createYouTube2DScene();
+        return;
+    }
+
+    // Normal VR modu devam ediyor...
     revokeCurrentVideoURL();
 
     videoElement = document.createElement('video');
@@ -229,6 +240,69 @@
 
     // ✅ VR UI Panel oluştur (sol tarafta)
     createVRUIPanel();
+}
+
+// ==================== YOUTUBE 2D SCENE ====================
+async function createYouTube2DScene() {
+    debugLog('🎬 Creating YouTube 2D scene...');
+    
+    // YouTube video ID'yi al
+    youtubeVideoId = currentRoomData.youtube.videoId;
+    
+    // 2D container oluştur
+    createYouTube2DContainer();
+    
+    // Room info güncelle
+    updateYouTubeRoomInfo();
+    
+    // YouTube player oluştur
+    try {
+        await createYouTubePlayer(youtubeVideoId, 'youtube-player-container');
+        
+        // Kontrolleri ayarla
+        updateYouTubeControls();
+        
+        // Sync interval başlat
+        startYouTubeSyncInterval();
+        
+        // Mevcut video state'i uygula
+        if (currentRoomData.videoState) {
+            applyYouTubeVideoState(currentRoomData.videoState);
+        }
+        
+        debugLog('✅ YouTube 2D scene created successfully');
+        
+    } catch (error) {
+        console.error('YouTube player creation failed:', error);
+        showYouTubeError(error.message);
+    }
+}
+
+// YouTube video state uygula
+function applyYouTubeVideoState(state) {
+    if (!ytPlayer || !ytPlayerReady || !state) return;
+    
+    const serverTime = getServerTime();
+    let targetTime = state.currentTime;
+    
+    if (state.isPlaying) {
+        const elapsed = (serverTime - state.startTimestamp) / 1000;
+        if (isFinite(elapsed) && elapsed >= 0) {
+            targetTime = state.currentTime + elapsed;
+        }
+    }
+    
+    // Pozisyona git
+    ytPlayer.seekTo(targetTime, true);
+    
+    // Play/Pause durumu
+    if (state.isPlaying) {
+        ytPlayer.playVideo();
+    } else {
+        ytPlayer.pauseVideo();
+    }
+    
+    debugLog('✅ YouTube video state applied, time:', targetTime, 'playing:', state.isPlaying);
 }
 
 // ✅ YENİ: Kontrolleri devre dışı bırak

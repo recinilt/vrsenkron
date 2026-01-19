@@ -21,6 +21,11 @@
                 cleanupSpatialAudio();
             }
             
+            // ✅ YENİ: YouTube player cleanup
+            if (typeof destroyYouTubePlayer === 'function') {
+                destroyYouTubePlayer();
+            }
+            
             // Full cleanup (includes FIX #7 & #8)
             fullCleanup();
             
@@ -56,6 +61,11 @@
             }
             if (vrPanel) vrPanel.remove();
             
+            // ✅ A-Frame sahnesini tekrar göster (YouTube modundan çıkış)
+            if (scene) {
+                scene.style.display = 'block';
+            }
+            
             getCachedElement('ui-overlay').classList.remove('hidden');
             getCachedElement('vr-controls').style.display = 'none';
             getCachedElement('room-info').style.display = 'none';
@@ -77,4 +87,8 @@
             // ✅ VR Panel değişkenlerini sıfırla
             screenPosition = { x: 0, y: 2, z: -10 };
             currentScreenScale = 1.0;
+            
+            // ✅ YENİ: YouTube değişkenlerini sıfırla
+            isYouTubeMode = false;
+            youtubeVideoId = null;
         }

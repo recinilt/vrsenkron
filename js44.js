@@ -76,8 +76,9 @@ async function createYouTubePlayer(videoId, containerId) {
                 width: '100%',
                 videoId: videoId,
                 playerVars: {
-                    'autoplay': 0,
-                    'controls': 1, // ✅ FIX: Kontrolleri göster (debug için)
+                    'autoplay': 1, // ✅ FIX: Muted autoplay için
+                    'mute': 1, // ✅ KRİTİK: Muted başla - autoplay için zorunlu
+                    'controls': 1,
                     'disablekb': 0, // Klavye kontrolleri açık
                     'enablejsapi': 1,
                     'fs': 1, // Fullscreen butonu açık
@@ -95,23 +96,14 @@ async function createYouTubePlayer(videoId, containerId) {
                         // ✅ FIX: Kontrolleri güncelle
                         updateYouTubeControls();
                         
-                        // ✅ FIX: YouTube video görünür olması için play-pause trick
-                        // Video "cued" durumundan çıkması için gerekli
-                        debugLog('🎬 Initializing video with play-pause trick...');
-                        ytPlayer.playVideo();
+                        // ✅ FIX: Mevcut state'i uygula (muted autoplay sayesinde çalışacak)
+                        if (currentRoomData && currentRoomData.videoState) {
+                            debugLog('🔄 Applying current video state on player ready');
+                            applyYouTubeVideoState(currentRoomData.videoState);
+                        }
                         
-                        trackTimeout(setTimeout(() => {
-                            if (ytPlayer && ytPlayerReady) {
-                                ytPlayer.pauseVideo();
-                                debugLog('✅ Video initialized (play-pause complete)');
-                                
-                                // Şimdi mevcut state'i uygula
-                                if (currentRoomData && currentRoomData.videoState) {
-                                    debugLog('🔄 Applying current video state after init');
-                                    applyYouTubeVideoState(currentRoomData.videoState);
-                                }
-                            }
-                        }, 500));
+                        // ✅ FIX: "Sesi Aç" overlay'i göster (user gesture için)
+                        showUnmuteOverlay();
                         
                         resolve(ytPlayer);
                     },
@@ -574,6 +566,116 @@ function destroyYouTubePlayer() {
 function checkYouTubeMode() {
     if (!currentRoomData) return false;
     return currentRoomData.youtube && currentRoomData.youtube.videoId;
+}
+
+// ==================== UNMUTE OVERLAY (User Gesture için) ====================
+
+// "Sesi Aç" overlay'ini göster
+function showUnmuteOverlay() {
+    // Mevcut overlay varsa kaldır
+    hideUnmuteOverlay();
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'youtube-unmute-overlay';
+    overlay.innerHTML = `
+        <div class="unmute-content">
+            <div class="unmute-icon">🔊</div>
+            <div class="unmute-text">Sesi Açmak İçin Dokunun</div>
+            <div class="unmute-subtext">Video sessiz oynatılıyor</div>
+        </div>
+    `;
+    
+    // Tıklama event'i - user gesture ile unmute
+    overlay.addEventListener('click', handleUnmuteClick);
+    overlay.addEventListener('touchstart', handleUnmuteClick);
+    
+    // Overlay stillerini ekle (inline)
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        cursor: pointer;
+    `;
+    
+    const content = overlay.querySelector('.unmute-content');
+    if (content) {
+        content.style.cssText = `
+            text-align: center;
+            color: white;
+            padding: 40px;
+            background: rgba(102, 126, 234, 0.9);
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        `;
+    }
+    
+    const icon = overlay.querySelector('.unmute-icon');
+    if (icon) {
+        icon.style.cssText = `
+            font-size: 80px;
+            margin-bottom: 20px;
+        `;
+    }
+    
+    const text = overlay.querySelector('.unmute-text');
+    if (text) {
+        text.style.cssText = `
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        `;
+    }
+    
+    const subtext = overlay.querySelector('.unmute-subtext');
+    if (subtext) {
+        subtext.style.cssText = `
+            font-size: 16px;
+            opacity: 0.8;
+        `;
+    }
+    
+    document.body.appendChild(overlay);
+    debugLog('🔊 Unmute overlay shown');
+}
+
+// Unmute overlay'ini gizle
+function hideUnmuteOverlay() {
+    const overlay = document.getElementById('youtube-unmute-overlay');
+    if (overlay) {
+        overlay.removeEventListener('click', handleUnmuteClick);
+        overlay.removeEventListener('touchstart', handleUnmuteClick);
+        overlay.remove();
+        debugLog('🔊 Unmute overlay hidden');
+    }
+}
+
+// Unmute tıklama handler'ı (user gesture)
+function handleUnmuteClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (ytPlayer && ytPlayerReady) {
+        // ✅ User gesture ile unmute
+        ytPlayer.unMute();
+        ytPlayer.setVolume(100);
+        
+        // ✅ Eğer owner playing state'indeyse videoyu oynat
+        if (currentRoomData && currentRoomData.videoState && currentRoomData.videoState.isPlaying) {
+            ytPlayer.playVideo();
+            debugLog('▶️ Video started with user gesture');
+        }
+        
+        debugLog('🔊 Video unmuted with user gesture');
+    }
+    
+    hideUnmuteOverlay();
 }
 
 debugLog('✅ YouTube IFrame API wrapper loaded');

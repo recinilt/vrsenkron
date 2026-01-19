@@ -104,6 +104,7 @@
     <div id="vr-controls">
         <button id="btn-play" onclick="playVideo()">▶️ Oynat</button>
         <button id="btn-pause" onclick="pauseVideo()">⏸️ Duraklat</button>
+        <button id="btn-stop" onclick="stopVideo()">⏹️ Stop</button>
         <button id="btn-rewind" onclick="seekBackward()">⏪ -10s</button>
         <button id="btn-forward" onclick="seekForward()">⏩ +10s</button>
         <button id="btn-sync" onclick="initiateSync()">🔄 Sync</button>
@@ -144,7 +145,7 @@
     <a-scene vr-mode-ui="enabled: true" loading-screen="enabled: false">
         <a-assets></a-assets>
         
-        <!-- Camera with cursor for VR interaction (VR Panel için güncellendi) -->
+        <!-- Camera with cursor for VR interaction + Mouse/Touch support -->
         <a-camera position="0 1.6 0">
             <a-cursor
                 id="vr-cursor"
@@ -154,6 +155,13 @@
                 visible="true">
             </a-cursor>
         </a-camera>
+        
+        <!-- Mouse/Touch Raycaster for non-VR mode -->
+        <a-entity
+            id="mouse-cursor"
+            cursor="rayOrigin: mouse"
+            raycaster="objects: .clickable; interval: 50; far: 100">
+        </a-entity>
         
         <!-- Lighting (minimal for performance) -->
         <a-light type="ambient" color="#BBB" intensity="0.5"></a-light>

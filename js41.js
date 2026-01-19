@@ -82,12 +82,13 @@ function createVRUIPanel() {
     });
 
     // ========================================
-    // VİDEO KONTROL BUTONLARI
+    // VİDEO KONTROL BUTONLARI (STOP EKLENDİ)
     // ========================================
     const videoBtns = [
-        { x: 0.2, y: -0.5, label: '<<', desc: '-10SN', action: () => seekVideoVR(-10) },
-        { x: 0.5, y: -0.5, label: '>', desc: 'OYNAT', action: () => togglePlayPause() },
-        { x: 0.8, y: -0.5, label: 'X', desc: 'DUR', action: () => stopVideoVR() },
+        { x: -0.1, y: -0.5, label: '<<', desc: '-10SN', action: () => seekVideoVR(-10) },
+        { x: 0.2, y: -0.5, label: '>', desc: 'OYNAT', action: () => togglePlayPause() },
+        { x: 0.5, y: -0.5, label: '||', desc: 'DUR', action: () => pauseVideo() },
+        { x: 0.8, y: -0.5, label: 'S', desc: 'STOP', action: () => stopVideo() },
         { x: 1.1, y: -0.5, label: '>>', desc: '+10SN', action: () => seekVideoVR(10) }
     ];
 
@@ -148,6 +149,46 @@ function createVRButton(x, y, z, symbol, description, size, onClick) {
     circle.addEventListener('click', onClick);
 
     return btn;
+}
+
+// ========================================
+// STOP VIDEO FONKSİYONU (2D + VR için ortak)
+// pause → 0.5sn → seek 0 → 0.5sn → pause
+// ========================================
+function stopVideo() {
+    if (!isRoomOwner || !videoElement) return;
+    
+    // 1. Önce pause
+    lastCommandSource = 'self';
+    videoElement.pause();
+    
+    // 2. 0.5 saniye bekle, sonra başa sar
+    trackTimeout(setTimeout(() => {
+        videoElement.currentTime = 0;
+        
+        // 3. 0.5 saniye bekle, sonra tekrar pause + Firebase güncelle
+        trackTimeout(setTimeout(() => {
+            videoElement.pause();
+            
+            const serverTime = getServerTime();
+            db.ref('rooms/' + currentRoomId + '/videoState').update({
+                isPlaying: false,
+                currentTime: 0,
+                startTimestamp: serverTime,
+                lastUpdate: firebase.database.ServerValue.TIMESTAMP
+            });
+            
+            // Keyframes ve syncState temizle
+            db.ref('rooms/' + currentRoomId + '/keyframes').remove();
+            db.ref('rooms/' + currentRoomId + '/syncState').remove();
+            
+            debugLog('⏹️ Stop: Video başa sarıldı');
+            
+            trackTimeout(setTimeout(() => {
+                lastCommandSource = null;
+            }, 300));
+        }, 500));
+    }, 500));
 }
 
 // ========================================
@@ -259,21 +300,8 @@ function seekVideoVR(seconds) {
 }
 
 function stopVideoVR() {
-    if (!videoElement || !isRoomOwner) return;
-    
-    pauseVideo();
-    // Video başına git
-    if (videoElement) {
-        videoElement.currentTime = 0;
-        
-        const serverTime = getServerTime();
-        db.ref('rooms/' + currentRoomId + '/videoState').update({
-            isPlaying: false,
-            currentTime: 0,
-            startTimestamp: serverTime,
-            lastUpdate: firebase.database.ServerValue.TIMESTAMP
-        });
-    }
+    // Bu fonksiyon artık stopVideo() kullanıyor
+    stopVideo();
 }
 
 // ========================================

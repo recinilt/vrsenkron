@@ -21,7 +21,7 @@
 
 **VR Cinema ULTRA**, çoklu kullanıcıların bir arada VR ortamında senkronize video izleyebileceği bir web uygulamasıdır.
 
-> **📌 TANIM:** Bu dokümantasyondaki **"BİLGİ BANKASI"** terimi, Claude'un document index'indeki (1-43) `claudesync/` klasöründeki tüm proje dosyalarını ifade eder. Sohbete `/mnt/user-data/uploads/` yoluyla eklenen dosyalar ise **"Ekteki Dosyalar"** olarak anılır.
+> **📌 TANIM:** Bu dokümantasyondaki **"BİLGİ BANKASI"** terimi, Claude'un document index'indeki (1-45) `claudesync/` klasöründeki tüm proje dosyalarını ifade eder. Sohbete `/mnt/user-data/uploads/` yoluyla eklenen dosyalar ise **"Ekteki Dosyalar"** olarak anılır.
 
 ### Ana Özellikler:
 - ✅ Gerçek zamanlı video senkronizasyonu
@@ -62,7 +62,7 @@
 
 ### Modüler JavaScript Yapısı
 
-Proje 40 ayrı JavaScript dosyasına bölünmüştür:
+Proje 41 ayrı JavaScript dosyasına bölünmüştür:
 
 ```
 js01.js → Temel değişkenler ve konfigürasyon
@@ -105,6 +105,7 @@ js37.js → Keyframe dinleme
 js38.js → Drift tracking
 js39.js → Sahip kontrolü
 js40.js → Periodic tasks ve init
+js41.js → VR UI Panel (ekran kontrol, ses, video kontrolleri, seek bar)
 ```
 
 ---
@@ -134,6 +135,14 @@ js40.js → Periodic tasks ve init
 - VR kontrolör desteği
 - Raycaster ile etkileşim
 - 3 farklı ekran boyutu (Orta, Büyük, IMAX)
+- **VR UI Panel (js41.js):**
+  - Ekran hareket kontrolleri (yukarı, aşağı, sol, sağ, yakın, uzak)
+  - Ekran boyut ayarı (büyüt/küçült)
+  - Ses kontrolleri (ses+, ses-, sessiz)
+  - Video kontrolleri (geri/ileri sarma, oynat/duraklat, durdur)
+  - Hassas seek bar (tıklama ile pozisyon değiştirme)
+  - Gerçek zamanlı zaman göstergesi
+  - Ses seviyesi göstergesi
 
 ### 5. **Sahiplik Sistemi**
 - Oda sahibi ayrılınca otomatik transfer
@@ -192,11 +201,12 @@ firebase deploy --only database
 
 ## 📁 Dosya Yapısı
 
-> **ÖNEMLİ NOT:** Bu dokümantasyonda **"BİLGİ BANKASI"** terimi, Claude'un context window'undaki (document index 1-43) `claudesync/` klasöründeki dosyaları ifade eder:
+> **ÖNEMLİ NOT:** Bu dokümantasyonda **"BİLGİ BANKASI"** terimi, Claude'un context window'undaki (document index 1-45) `claudesync/` klasöründeki dosyaları ifade eder:
 > - `claudesync/index.html`
 > - `claudesync/styles.css`
-> - `claudesync/js01.js` - `js40.js` (40 adet JavaScript modülü)
+> - `claudesync/js01.js` - `js41.js` (41 adet JavaScript modülü)
 > - `claudesync/firebase-rules.json`
+> - `claudesync/CLAUDE.md` (bu dokümantasyon)
 >
 > **Sohbete eklenen dosyalar** (`/mnt/user-data/uploads/` klasöründeki) ise **"EKTEKİ DOSYALAR"** veya **"REFERANS DOSYALAR"** olarak anılır.
 
@@ -205,11 +215,13 @@ claudesync/                 # ← BİLGİ BANKASI (Ana Proje)
 ├── index.html              # Ana HTML dosyası
 ├── styles.css              # CSS stilleri
 ├── firebase-rules.json     # Firebase güvenlik kuralları
+├── CLAUDE.md               # Proje dokümantasyonu
 ├── js01.js                 # Config ve state
 ├── js02.js                 # Global değişkenler
 ├── js03.js                 # ABR yönetimi
-├── ...                     # (40 JS dosyası)
-└── js40.js                 # Init ve periodic tasks
+├── ...                     # (41 JS dosyası)
+├── js40.js                 # Init ve periodic tasks
+└── js41.js                 # VR UI Panel (ekran, ses, video kontrolleri)
 ```
 
 ---
@@ -377,6 +389,56 @@ function fullCleanup()
 
 ```javascript
 function clearVideoListeners()
+```
+
+### VR UI Panel Fonksiyonları
+
+#### `createVRUIPanel()`
+**Dosya:** js41.js  
+**Görev:** VR ortamında sol tarafta kontrol paneli oluşturur
+
+**Panel Özellikleri:**
+- Ekran hareket kontrolleri (8 yön)
+- Ekran boyut ayarı
+- Ses kontrolleri (artır/azalt/sessiz)
+- Video kontrolleri (oynat/durdur/sarma)
+- Hassas seek bar (lokal koordinat ile tıklama)
+- Gerçek zamanlı zaman göstergesi
+
+```javascript
+function createVRUIPanel()
+```
+
+#### `moveScreen(direction)`
+**Dosya:** js41.js  
+**Görev:** VR ekranını hareket ettirir
+
+```javascript
+function moveScreen('up' | 'down' | 'left' | 'right' | 'forward' | 'backward' | 'reset')
+```
+
+#### `scaleScreen(direction)`
+**Dosya:** js41.js  
+**Görev:** VR ekranını büyütür/küçültür
+
+```javascript
+function scaleScreen('up' | 'down')
+```
+
+#### `adjustVolume(delta)`
+**Dosya:** js41.js  
+**Görev:** Ses seviyesini ayarlar
+
+```javascript
+function adjustVolume(delta) // delta: -0.1 veya 0.1
+```
+
+#### `createVRSeekBar(panel)`
+**Dosya:** js41.js  
+**Görev:** Hassas tıklamalı seek bar oluşturur
+
+```javascript
+function createVRSeekBar(panel)
 ```
 
 ---
@@ -635,6 +697,12 @@ AFRAME.registerComponent('video-texture-fix', {
 ### VR Modunda
 - VR gözlük takın
 - Cursor ile butonlara tıklayın
+- **VR Kontrol Paneli (Sol tarafta):**
+  - **Ekran Hareket:** Yukarı/Aşağı/Sol/Sağ/Yakın/Uzak/Sıfırla butonları
+  - **Ekran Boyut:** Büyüt (+) / Küçült (-) butonları
+  - **Ses Kontrol:** Ses+ / Ses- / Sessiz (M) butonları
+  - **Video Kontrol:** << (Geri) / > (Oynat) / X (Dur) / >> (İleri)
+  - **Hassas Seek Bar:** Zaman çubuğuna tıklayarak istediğiniz pozisyona atlayın
 - Keyboard kısayolları:
   - `Space`: Play/Pause
   - `←`: -10s
@@ -697,7 +765,8 @@ const HARD_SEEK_MIN_INTERVAL = 2000;    // Min 2 saniye arayla hard seek
 <script>
 const v = new Date().getTime();
 document.write('<script src="js01.js?v=' + v + '"><\/script>');
-// ... (tüm JS dosyaları için)
+// ... (tüm JS dosyaları js01.js - js41.js)
+document.write('<script src="js41.js?v=' + v + '"><\/script>');
 </script>
 ```
 

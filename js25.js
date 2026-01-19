@@ -1,5 +1,4 @@
-
-        function handleVRButton(action) {
+function handleVRButton(action) {
             if (!isRoomOwner) return;
             
             switch(action) {
@@ -8,6 +7,9 @@
                     break;
                 case 'pause':
                     pauseVideo();
+                    break;
+                case 'stop':
+                    stopVideo();
                     break;
                 case 'rewind':
                     seekBackward();

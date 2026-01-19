@@ -128,10 +128,11 @@
         panel.setAttribute('position', '0 1 -2');
 
         const buttons = [
-            { text: '▶', position: '-0.6 0 0', event: 'play' },
-            { text: '⏸', position: '-0.2 0 0', event: 'pause' },
-            { text: '⏪', position: '0.2 0 0', event: 'rewind' },
-            { text: '⏩', position: '0.6 0 0', event: 'forward' }
+            { text: '▶', position: '-0.8 0 0', event: 'play' },
+            { text: '⏸', position: '-0.4 0 0', event: 'pause' },
+            { text: '⏹', position: '0 0 0', event: 'stop' },
+            { text: '⏪', position: '0.4 0 0', event: 'rewind' },
+            { text: '⏩', position: '0.8 0 0', event: 'forward' }
         ];
 
         // ✅ FIX: VR button listener'larını track et (cleanup için)

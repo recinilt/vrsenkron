@@ -67,6 +67,11 @@ async function acceptOwnershipRequest(requestId) {
         updateRoomInfoDisplay();
         updateOwnershipRequestButton();
         
+        // ✅ FIX: YouTube modundaysa kontrolleri güncelle (arama çubuğu gizlensin)
+        if (isYouTubeMode) {
+            updateYouTubeControls();
+        }
+        
         // 9. İsteği temizle
         await db.ref(`rooms/${currentRoomId}/ownershipRequests/${requestId}`).remove();
         
@@ -138,6 +143,11 @@ function listenMyOwnershipRequestStatus() {
             // UI güncelle
             updateRoomInfoDisplay();
             updateOwnershipRequestButton();
+            
+            // ✅ FIX: YouTube modundaysa kontrolleri güncelle (arama çubuğu görünsün)
+            if (isYouTubeMode) {
+                updateYouTubeControls();
+            }
             
             pendingOwnershipRequest = null;
             

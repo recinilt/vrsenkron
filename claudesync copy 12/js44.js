@@ -93,10 +93,16 @@ async function createYouTubePlayer(videoId, containerId) {
                         ytPlayerReady = true;
                         debugLog('✅ YouTube player ready');
                         
-                        // ✅ FIX: Sadece kontrolleri güncelle, state sync'i interval'a bırak
+                        // ✅ FIX: Kontrolleri güncelle
                         updateYouTubeControls();
                         
-                        // ✅ FIX: Unmute overlay'i göster (user gesture için)
+                        // ✅ FIX: Mevcut state'i uygula (muted autoplay sayesinde çalışacak)
+                        if (currentRoomData && currentRoomData.videoState) {
+                            debugLog('🔄 Applying current video state on player ready');
+                            applyYouTubeVideoState(currentRoomData.videoState);
+                        }
+                        
+                        // ✅ FIX: "Sesi Aç" overlay'i göster (user gesture için)
                         showUnmuteOverlay();
                         
                         resolve(ytPlayer);
@@ -133,10 +139,6 @@ async function createYouTubePlayer(videoId, containerId) {
 
 // ==================== YOUTUBE PLAYER EVENTS ====================
 
-// ✅ FIX: Seek throttle için değişken
-let lastYTSeekTime = 0;
-const YT_SEEK_COOLDOWN = 3000; // 3 saniye
-
 // YouTube player state değişikliği
 function onYTPlayerStateChange(event) {
     if (!ytPlayer || !ytPlayerReady) return;
@@ -146,13 +148,6 @@ function onYTPlayerStateChange(event) {
     
     const state = event.data;
     debugLog('🎬 YouTube state:', state);
-    
-    // ✅ FIX: Player PLAYING veya PAUSED durumuna geçtiğinde ilk sync yap
-    if (!isRoomOwner && (state === YT.PlayerState.PLAYING || state === YT.PlayerState.PAUSED)) {
-        // State değiştiğinde hemen bir sync dene
-        lastYTSeekTime = 0; // Cooldown'ı sıfırla
-        syncYouTubeVideo();
-    }
     
     // Sadece owner'ın aksiyonları Firebase'e gönderilir
     if (!isRoomOwner) return;
@@ -309,55 +304,59 @@ function ytSeekForward() {
 
 // ==================== YOUTUBE SYNC ====================
 
-// ✅ FIX: YouTube video state'ini uygula (SADECE ilk yüklemede 1 kere)
+// ✅ FIX: YouTube video state'ini uygula (SADECE onReady'de 1 kere çağrılır)
 function applyYouTubeVideoState(state) {
     if (!ytPlayer || !ytPlayerReady || !state) {
         debugLog('⚠️ applyYouTubeVideoState: player not ready or no state');
         return;
     }
     
-    // ✅ FIX: Bu fonksiyon artık kullanılmıyor, sync interval hallediyor
-    debugLog('ℹ️ applyYouTubeVideoState called but sync interval handles this');
+    try {
+        const serverTime = getServerTime();
+        
+        // Hedef pozisyonu hesapla
+        let targetTime = state.currentTime || 0;
+        if (state.isPlaying && state.startTimestamp) {
+            const elapsed = (serverTime - state.startTimestamp) / 1000;
+            if (isFinite(elapsed) && elapsed >= 0 && elapsed < 86400) {
+                targetTime = state.currentTime + elapsed;
+            }
+        }
+        
+        // Pozisyona git
+        if (targetTime > 0) {
+            ytPlayer.seekTo(targetTime, true);
+            debugLog('📍 YouTube initial seek to:', targetTime);
+        }
+        
+        // Play/Pause durumu
+        if (state.isPlaying) {
+            // ✅ FIX: isPlaying true ise play dene (muted autoplay ile çalışmalı)
+            ytPlayer.playVideo();
+            debugLog('▶️ YouTube play attempted (initial state)');
+        } else {
+            ytPlayer.pauseVideo();
+            debugLog('⏸️ YouTube paused (initial state)');
+        }
+        
+    } catch (e) {
+        console.warn('applyYouTubeVideoState error:', e);
+    }
 }
 
-// ✅ FIX: YouTube video senkronizasyonu (viewer için) - Tamamen yeniden yazıldı
+// YouTube video senkronizasyonu (viewer için)
 function syncYouTubeVideo() {
-    // Owner sync yapmaz
-    if (isRoomOwner) return;
-    
-    // Player hazır değilse çık
-    if (!ytPlayer || !ytPlayerReady) return;
-    
-    // Room data yoksa çık
+    if (isRoomOwner || !ytPlayer || !ytPlayerReady) return;
     if (!currentRoomData || !currentRoomData.videoState) return;
-    
-    // Sync mode aktifse çık
     if (syncModeActive) return;
     
-    // ✅ FIX: Player state kontrolü - UNSTARTED, BUFFERING, CUED durumlarında sync yapma
-    const ytState = ytPlayer.getPlayerState();
-    
-    // -1: UNSTARTED, 3: BUFFERING, 5: CUED - bu durumlarda seekTo() güvenilir çalışmaz
-    if (ytState === -1 || ytState === 3 || ytState === 5) {
-        // Sadece play/pause senkronizasyonu yap, seek yapma
-        const state = currentRoomData.videoState;
-        
-        if (state.isPlaying && ytState !== 1) {
-            ytPlayer.playVideo();
-            debugLog('▶️ YouTube: Trying to start playback (state:', ytState, ')');
-        }
-        return; // Seek yapmadan çık
-    }
-    
-    // ✅ FIX: Throttle - çok sık sync yapma
     const now = Date.now();
-    if (now - lastYTSyncTime < 500) return;
+    if (now - lastYTSyncTime < 500) return; // Throttle
     lastYTSyncTime = now;
     
     const state = currentRoomData.videoState;
     const serverTime = getServerTime();
     
-    // Hedef zamanı hesapla
     let expectedTime = state.currentTime;
     if (state.isPlaying) {
         const elapsed = (serverTime - state.startTimestamp) / 1000;
@@ -366,58 +365,37 @@ function syncYouTubeVideo() {
         }
     }
     
-    // Mevcut zamanı al
     const currentTime = ytPlayer.getCurrentTime();
     const drift = Math.abs(currentTime - expectedTime) * 1000;
     
     // Play/Pause senkronizasyonu
+    const ytState = ytPlayer.getPlayerState();
     const isYTPlaying = ytState === YT.PlayerState.PLAYING;
     
     if (state.isPlaying && !isYTPlaying) {
         ytPlayer.playVideo();
-        debugLog('▶️ YouTube sync: play');
     } else if (!state.isPlaying && isYTPlaying) {
         ytPlayer.pauseVideo();
-        debugLog('⏸️ YouTube sync: pause');
     }
     
-    // ✅ FIX: Pozisyon senkronizasyonu - seek cooldown ile
+    // Pozisyon senkronizasyonu
     if (drift > 2000) {
-        // Seek cooldown kontrolü
-        if (now - lastYTSeekTime < YT_SEEK_COOLDOWN) {
-            debugLog('⏳ YouTube seek cooldown active, skipping seek');
-            return;
-        }
-        
         // 2 saniyeden fazla sapma varsa seek
-        debugLog('🔄 YouTube sync seek, drift:', Math.round(drift), 'ms, target:', expectedTime.toFixed(1));
+        debugLog('🔄 YouTube sync seek, drift:', drift, 'ms');
         ytPlayer.seekTo(expectedTime, true);
-        lastYTSeekTime = now; // Cooldown başlat
-        
-    } else if (drift > 500 && state.isPlaying) {
-        // Küçük sapmalarda playback rate ayarla (sadece oynatma durumundayken)
+    } else if (drift > 500) {
+        // Küçük sapmalarda playback rate ayarla
         const behind = currentTime < expectedTime;
-        const newRate = behind ? 1.1 : 0.9;
+        ytPlayer.setPlaybackRate(behind ? 1.1 : 0.9);
         
-        try {
-            ytPlayer.setPlaybackRate(newRate);
-            
-            // 2 saniye sonra normale dön
-            trackTimeout(setTimeout(() => {
-                if (ytPlayer && ytPlayerReady) {
-                    try {
-                        ytPlayer.setPlaybackRate(1.0);
-                    } catch (e) {}
-                }
-            }, 2000));
-        } catch (e) {
-            // Playback rate desteklenmiyorsa ignore et
-        }
-    } else if (drift <= 500) {
-        // Sync iyi, playback rate'i normale al
-        try {
-            ytPlayer.setPlaybackRate(1.0);
-        } catch (e) {}
+        // 2 saniye sonra normale dön
+        trackTimeout(setTimeout(() => {
+            if (ytPlayer && ytPlayerReady) {
+                ytPlayer.setPlaybackRate(1.0);
+            }
+        }, 2000));
+    } else {
+        ytPlayer.setPlaybackRate(1.0);
     }
     
     // Drift UI güncelle
@@ -444,10 +422,6 @@ function startYouTubeSyncInterval() {
 // YouTube zaman göstergesini güncelle
 function updateYouTubeTimeDisplay() {
     if (!ytPlayer || !ytPlayerReady) return;
-    
-    // ✅ FIX: Player state kontrolü - UNSTARTED durumunda güvenilir değer alamayız
-    const ytState = ytPlayer.getPlayerState();
-    if (ytState === -1) return;
     
     const currentTime = ytPlayer.getCurrentTime();
     const duration = ytPlayer.getDuration();
@@ -605,7 +579,6 @@ function cleanupYouTubePlayerOnly() {
     }
     
     ytPlayerReady = false;
-    lastYTSeekTime = 0; // ✅ FIX: Seek cooldown'ı sıfırla
     debugLog('🧹 YouTube player only cleanup (container preserved)');
 }
 

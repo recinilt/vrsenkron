@@ -304,6 +304,44 @@ function ytSeekForward() {
 
 // ==================== YOUTUBE SYNC ====================
 
+// ✅ FIX: YouTube video state'ini uygula (onReady'de çağrılır)
+function applyYouTubeVideoState(state) {
+    if (!ytPlayer || !ytPlayerReady || !state) {
+        debugLog('⚠️ applyYouTubeVideoState: player not ready or no state');
+        return;
+    }
+    
+    try {
+        const serverTime = getServerTime();
+        
+        // Hedef pozisyonu hesapla
+        let targetTime = state.currentTime || 0;
+        if (state.isPlaying && state.startTimestamp) {
+            const elapsed = (serverTime - state.startTimestamp) / 1000;
+            if (isFinite(elapsed) && elapsed >= 0 && elapsed < 86400) {
+                targetTime = state.currentTime + elapsed;
+            }
+        }
+        
+        // Pozisyona git
+        if (targetTime > 0) {
+            ytPlayer.seekTo(targetTime, true);
+            debugLog('📍 YouTube seek to:', targetTime);
+        }
+        
+        // Play/Pause durumu - NOT: muted autoplay ile video zaten oynuyor olabilir
+        // Bu yüzden sadece pause gerekiyorsa pause yap
+        if (!state.isPlaying) {
+            ytPlayer.pauseVideo();
+            debugLog('⏸️ YouTube paused (initial state)');
+        }
+        // isPlaying true ise video zaten autoplay ile oynuyor (muted)
+        
+    } catch (e) {
+        console.warn('applyYouTubeVideoState error:', e);
+    }
+}
+
 // YouTube video senkronizasyonu (viewer için)
 function syncYouTubeVideo() {
     if (isRoomOwner || !ytPlayer || !ytPlayerReady) return;

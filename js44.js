@@ -92,14 +92,26 @@ async function createYouTubePlayer(videoId, containerId) {
                         ytPlayerReady = true;
                         debugLog('✅ YouTube player ready');
                         
-                        // ✅ FIX: Player hazır olduğunda kontrolleri güncelle
+                        // ✅ FIX: Kontrolleri güncelle
                         updateYouTubeControls();
                         
-                        // ✅ FIX: Player hazır olduğunda mevcut state'i uygula
-                        if (currentRoomData && currentRoomData.videoState) {
-                            debugLog('🔄 Applying current video state on player ready');
-                            applyYouTubeVideoState(currentRoomData.videoState);
-                        }
+                        // ✅ FIX: YouTube video görünür olması için play-pause trick
+                        // Video "cued" durumundan çıkması için gerekli
+                        debugLog('🎬 Initializing video with play-pause trick...');
+                        ytPlayer.playVideo();
+                        
+                        trackTimeout(setTimeout(() => {
+                            if (ytPlayer && ytPlayerReady) {
+                                ytPlayer.pauseVideo();
+                                debugLog('✅ Video initialized (play-pause complete)');
+                                
+                                // Şimdi mevcut state'i uygula
+                                if (currentRoomData && currentRoomData.videoState) {
+                                    debugLog('🔄 Applying current video state after init');
+                                    applyYouTubeVideoState(currentRoomData.videoState);
+                                }
+                            }
+                        }, 500));
                         
                         resolve(ytPlayer);
                     },

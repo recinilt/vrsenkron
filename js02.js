@@ -118,7 +118,7 @@ let lastYTSyncTime = 0;
 // ⚠️ Google Cloud Console'dan API key alıp buraya yapıştır
 // https://console.cloud.google.com → APIs & Services → Credentials → Create API Key
 // YouTube Data API v3'ü etkinleştirmeyi unutma!
-const YOUTUBE_API_KEY = 'YOUR_API_KEY_HERE';
+//const YOUTUBE_API_KEY = 'YOUR_API_KEY_HERE'; ytapi.js dosyasından alınıyor
 
 // Arama state
 let ytSearchResults = [];

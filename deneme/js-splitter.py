@@ -4,7 +4,7 @@
 JS Dosya Bölücü ve HTML Güncelleyici
 - Dizindeki JS dosyalarını tarar
 - Max satır sayısını aşanları akıllıca böler (fonksiyonları bozmadan)
-- HTML dosyalarındaki referansları günceller
+- HTML dosyalarındaki referansları günceller (document.write formatı dahil)
 """
 
 import os
@@ -25,23 +25,62 @@ def split_js_into_units(js_content):
     units = []
     current = []
     brace_depth = 0
+    in_string = False
+    string_char = None
+    in_multi_comment = False
     
     for line in lines:
         current.append(line)
         
-        # String ve comment dışındaki { } karakterlerini say
-        # Basit yaklaşım: tüm { ve } sayılır
-        for char in line:
-            if char == '{':
-                brace_depth += 1
-            elif char == '}':
-                brace_depth = max(0, brace_depth - 1)
+        i = 0
+        while i < len(line):
+            char = line[i]
+            next_char = line[i + 1] if i + 1 < len(line) else ''
+            
+            # Tek satır yorum kontrolü
+            if not in_string and not in_multi_comment and char == '/' and next_char == '/':
+                break  # Satırın geri kalanını atla
+            
+            # Çok satırlı yorum başlangıcı
+            if not in_string and not in_multi_comment and char == '/' and next_char == '*':
+                in_multi_comment = True
+                i += 2
+                continue
+            
+            # Çok satırlı yorum bitişi
+            if in_multi_comment and char == '*' and next_char == '/':
+                in_multi_comment = False
+                i += 2
+                continue
+            
+            if in_multi_comment:
+                i += 1
+                continue
+            
+            # String kontrolü
+            if char in ['"', "'", '`'] and (i == 0 or line[i-1] != '\\'):
+                if not in_string:
+                    in_string = True
+                    string_char = char
+                elif char == string_char:
+                    in_string = False
+                    string_char = None
+            
+            # String içinde değilsek parantez say
+            if not in_string:
+                if char == '{':
+                    brace_depth += 1
+                elif char == '}':
+                    brace_depth = max(0, brace_depth - 1)
+            
+            i += 1
         
         trimmed = line.strip()
         # Brace derinliği 0 ve satır ; veya } ile bitiyorsa unit tamamdır
-        if brace_depth == 0 and (trimmed.endswith(';') or trimmed.endswith('}')):
-            units.append('\n'.join(current) + '\n')
-            current = []
+        if brace_depth == 0 and not in_string and not in_multi_comment:
+            if trimmed.endswith(';') or trimmed.endswith('}'):
+                units.append('\n'.join(current) + '\n')
+                current = []
     
     # Kalan satırlar varsa ekle
     if current:
@@ -112,35 +151,52 @@ def get_new_filenames(original_name, part_count):
 def update_html_references(html_content, old_filename, new_filenames):
     """
     HTML içindeki JS referansını yeni dosyalarla değiştirir.
+    Hem normal <script src> hem de document.write formatını destekler.
     """
-    # Farklı script tag formatlarını yakala
-    # <script src="js33.js"></script>
-    # <script src="js/js33.js"></script>
-    # <script src="js33.js?v=123"></script>
+    updated = html_content
     
-    # Dosya adını escape et (regex için)
-    escaped_name = re.escape(old_filename)
+    # Dosya adı (js24.js)
+    escaped_filename = re.escape(old_filename)
     
-    # Pattern: script tag'ini yakala (path ile veya path'siz)
-    pattern = r'(<script[^>]*\ssrc=["\'])([^"\']*?)(' + escaped_name + r')(\?[^"\']*)?(["\'][^>]*>.*?</script>)'
+    # Pattern 1: document.write('<script src="js24.js?v=' + v + '"><\/script>');
+    # Tam satırı yakala - parantez ve noktalı virgül dahil
+    pattern_docwrite = (
+        r"(document\.write\s*\(\s*['\"]<script[^>]*src=['\"])(" + escaped_filename + r")(\?[^'\"]*)?(['\"][^>]*><\\?/script>['\"])\s*(\)\s*;?)"
+    )
     
-    def replacement(match):
-        prefix = match.group(1)      # <script src="
-        path = match.group(2)        # js/ veya boş
-        filename = match.group(3)    # js33.js
-        query = match.group(4) or '' # ?v=123 veya boş
-        suffix = match.group(5)      # "></script>
+    def replace_docwrite(match):
+        prefix = match.group(1)    # document.write('<script src="
+        filename = match.group(2)  # js24.js
+        query = match.group(3) or ''  # ?v=' + v + '
+        suffix = match.group(4)    # "><\/script>'
+        closing = match.group(5)   # );
         
-        # Yeni script tag'lerini oluştur
+        new_lines = []
+        for new_name in new_filenames:
+            new_lines.append(f"{prefix}{new_name}{query}{suffix}{closing}")
+        return '\n'.join(new_lines)
+    
+    updated = re.sub(pattern_docwrite, replace_docwrite, updated, flags=re.IGNORECASE)
+    
+    # Pattern 2: Normal <script src="js24.js"></script>
+    pattern_script = (
+        r'(<script[^>]*src=["\'])(' + escaped_filename + r')(\?[^"\']*)?(["\'][^>]*></script>)'
+    )
+    
+    def replace_script(match):
+        prefix = match.group(1)    # <script src="
+        filename = match.group(2)  # js24.js
+        query = match.group(3) or ''  # ?v=123
+        suffix = match.group(4)    # "></script>
+        
         new_tags = []
         for new_name in new_filenames:
-            new_tags.append(f'{prefix}{path}{new_name}{query}{suffix}')
-        
+            new_tags.append(f'{prefix}{new_name}{query}{suffix}')
         return '\n'.join(new_tags)
     
-    updated_html = re.sub(pattern, replacement, html_content, flags=re.IGNORECASE | re.DOTALL)
+    updated = re.sub(pattern_script, replace_script, updated, flags=re.IGNORECASE)
     
-    return updated_html
+    return updated
 
 
 def process_directory(directory, max_lines):
@@ -161,7 +217,7 @@ def process_directory(directory, max_lines):
     split_files = {}
     
     # Her JS dosyasını kontrol et
-    for js_path in js_files:
+    for js_path in sorted(js_files):
         filename = os.path.basename(js_path)
         
         with open(js_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -213,7 +269,7 @@ def process_directory(directory, max_lines):
         print("Bölünen dosya olmadığı için HTML güncellenmedi.")
         return
     
-    html_files = glob.glob(os.path.join(directory, '*.html'))
+    html_files = glob.glob(os.path.join(directory, '*.html')) + glob.glob(os.path.join(directory, '*.htm'))
     
     if not html_files:
         print("\n" + "=" * 50)
@@ -231,28 +287,28 @@ def process_directory(directory, max_lines):
             html_content = f.read()
         
         original_content = html_content
-        updated = False
+        changes = []
         
         for old_name, new_names in split_files.items():
+            # Dosya adı HTML'de var mı kontrol et
             if old_name in html_content:
                 html_content = update_html_references(html_content, old_name, new_names)
-                if html_content != original_content:
-                    updated = True
-                    print(f"✓ {html_filename}: {old_name} → {', '.join(new_names)}")
+                changes.append(f"{old_name} → {', '.join(new_names)}")
         
-        if updated:
+        if html_content != original_content:
             with open(html_path, 'w', encoding='utf-8') as f:
                 f.write(html_content)
+            print(f"✓ {html_filename} güncellendi:")
+            for change in changes:
+                print(f"    {change}")
         else:
-            # Referans var mı kontrol et
-            has_ref = any(old in html_content for old in split_files.keys())
-            if not has_ref:
-                print(f"- {html_filename}: Bölünen dosyalara referans yok")
+            print(f"- {html_filename}: Değişiklik yok")
     
     print("\n" + "=" * 50)
     print("İşlem tamamlandı!")
     print(f"Bölünen dosya sayısı: {len(split_files)}")
-    print(f"Güncellenen HTML sayısı: {len(html_files)}")
+    total_new = sum(len(v) for v in split_files.values())
+    print(f"Oluşturulan yeni dosya sayısı: {total_new}")
 
 
 def main():

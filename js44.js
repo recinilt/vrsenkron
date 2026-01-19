@@ -77,10 +77,10 @@ async function createYouTubePlayer(videoId, containerId) {
                 videoId: videoId,
                 playerVars: {
                     'autoplay': 0,
-                    'controls': 0, // Kontrolleri gizle (kendi kontrollerimizi kullanacağız)
-                    'disablekb': 1, // Klavye kontrollerini devre dışı bırak
+                    'controls': 1, // ✅ FIX: Kontrolleri göster (debug için)
+                    'disablekb': 0, // Klavye kontrolleri açık
                     'enablejsapi': 1,
-                    'fs': 0, // Fullscreen butonunu gizle
+                    'fs': 1, // Fullscreen butonu açık
                     'iv_load_policy': 3, // Annotations kapalı
                     'modestbranding': 1,
                     'rel': 0, // İlgili videoları gösterme
@@ -91,6 +91,16 @@ async function createYouTubePlayer(videoId, containerId) {
                     'onReady': (event) => {
                         ytPlayerReady = true;
                         debugLog('✅ YouTube player ready');
+                        
+                        // ✅ FIX: Player hazır olduğunda kontrolleri güncelle
+                        updateYouTubeControls();
+                        
+                        // ✅ FIX: Player hazır olduğunda mevcut state'i uygula
+                        if (currentRoomData && currentRoomData.videoState) {
+                            debugLog('🔄 Applying current video state on player ready');
+                            applyYouTubeVideoState(currentRoomData.videoState);
+                        }
+                        
                         resolve(ytPlayer);
                     },
                     'onStateChange': onYTPlayerStateChange,

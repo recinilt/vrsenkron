@@ -63,6 +63,9 @@
         let currentVideoSourceType = 'url'; // 'url' veya 'p2p'
         let p2pUpdateInterval = null;
         
+        // ✅ YENİ: P2P download tamamlandı mı?
+        let isP2PDownloadComplete = false;
+        
         // WebTorrent Tracker URLs
         const WEBTORRENT_TRACKERS = [
             'wss://tracker.btorrent.xyz',

@@ -1,5 +1,4 @@
-        
-        // ✅ FIX #5 & #6: syncVideo - main thread blokajı ve DOM thrashing azaltma
+// ✅ FIX #5 & #6: syncVideo - main thread blokajı ve DOM thrashing azaltma
         function syncVideo() {
             // ✅ FIX: isHardSeeking kontrolü eklendi
             if (isRoomOwner || isSeeking || isHardSeeking) return;
@@ -7,6 +6,14 @@
 
             if (syncState && syncState.isBuffering) return;
 
+            // ✅ YENİ: P2P indirme tamamlanmadıysa sync yapma
+            const isP2PMode = currentRoomData.p2p && currentRoomData.p2p.magnetURI;
+            if (isP2PMode && !isP2PDownloadComplete) {
+                debugLog('⚠️ P2P downloading, sync disabled');
+                return;
+            }
+
+            // NORMAL SYNC LOGIC (P2P complete veya URL modu)
             const state = currentRoomData.videoState;
             const serverTime = getServerTime();
             let expectedTime = state.currentTime; 

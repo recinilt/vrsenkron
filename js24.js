@@ -26,7 +26,7 @@
     videoElement.addEventListener('loadedmetadata', handleLoadedMetadata);
     videoElement.addEventListener('error', handleError);
 
-    videoElement.listeners.push(
+    videoElement._listeners.push(
         { event: 'loadedmetadata', handler: handleLoadedMetadata },
         { event: 'error', handler: handleError }
     );
@@ -35,23 +35,82 @@
     const isP2PRoom = currentRoomData.p2p && currentRoomData.p2p.magnetURI;
     
     if (isP2PRoom && !isRoomOwner) {
-        // İzleyici: P2P'den indir
+        // ✅ İzleyici: P2P ile TÜM VIDEO'yu indir
         try {
-            showP2PStatus('🔍 P2P bağlantısı kuruluyor...', 0);
+            // ✅ Kontrolleri devre dışı bırak
+            disableAllControls();
+            
+            showP2PStatus('🔗 P2P bağlantısı kuruluyor...', 0);
             const videoFile = await joinP2PTorrent(currentRoomData.p2p.magnetURI);
             
-            // WebTorrent file'ı video element'e bağla
-            videoFile.renderTo(videoElement, { autoplay: false }, (err) => {
-                if (err) {
-                    console.error('Render error:', err);
-                    updateP2PStatus('❌ Video yüklenemedi', 0);
-                } else {
-                    debugLog('✅ P2P video rendered to element');
+            debugLog('✅ Video file ready, starting full download...');
+            
+            // ✅ TÜM DOSYAYI İNDİRMEYİ ZORLA
+            videoFile.select(0, videoFile.length, true);
+            
+            // ✅ Torrent download progress izle
+            const progressInterval = setInterval(() => {
+                if (!currentTorrent) {
+                    clearInterval(progressInterval);
+                    return;
                 }
-            });
+                
+                const progress = Math.round(currentTorrent.progress * 100);
+                const downloaded = currentTorrent.downloaded;
+                const total = currentTorrent.length;
+                
+                updateP2PStatus(`📥 İndiriliyor: %${progress} (${formatBytes(downloaded)} / ${formatBytes(total)})`, progress);
+                
+                const stats = `📥 ${formatBytes(currentTorrent.downloadSpeed)}/s | 📤 ${formatBytes(currentTorrent.uploadSpeed)}/s | 👥 ${currentTorrent.numPeers}`;
+                updateP2PStats(stats);
+                
+                // ✅ %100 indiğinde Blob URL oluştur
+                if (currentTorrent.progress === 1 && !currentVideoObjectURL) {
+                    clearInterval(progressInterval);
+                    
+                    debugLog('✅ Download complete, creating Blob URL...');
+                    updateP2PStatus('✅ İndirme tamamlandı, hazırlanıyor...', 100);
+                    
+                    // Blob URL oluştur
+                    videoFile.getBlobURL((err, blobURL) => {
+                        if (err) {
+                            console.error('Blob URL error:', err);
+                            updateP2PStatus('❌ Video hazırlanamadı', 0);
+                            enableAllControls(); // Hata durumunda kontrolleri aç
+                            return;
+                        }
+                        
+                        debugLog('✅ Blob URL created:', blobURL);
+                        currentVideoObjectURL = blobURL;
+                        videoElement.src = blobURL;
+                        
+                        // ✅ DOWNLOAD TAMAMLANDI - FLAG AKTİF
+                        isP2PDownloadComplete = true;
+                        
+                        // ✅ Kontrolleri aktif et
+                        enableAllControls();
+                        
+                        updateP2PStatus('✅ P2P video hazır! Artık tam kontrol!', 100);
+                        
+                        // Video hazır olduğunda Firebase state'e göre başlat
+                        setTimeout(() => {
+                            if (currentRoomData && currentRoomData.videoState && currentRoomData.videoState.isPlaying) {
+                                videoElement.play().then(() => {
+                                    debugLog('✅ P2P video auto-started');
+                                }).catch(err => {
+                                    console.warn('P2P autoplay failed:', err);
+                                });
+                            }
+                        }, 1000);
+                    });
+                }
+            }, 500);
+            trackInterval(progressInterval);
+            
         } catch (e) {
             console.error('P2P join error:', e);
             updateP2PStatus('❌ P2P hatası: ' + e.message, 0);
+            enableAllControls(); // Hata durumunda kontrolleri aç
         }
     } else if (isP2PRoom && isRoomOwner) {
         // Sahip: Zaten seed ediyoruz, lokal dosyayı kullan
@@ -60,10 +119,14 @@
             currentVideoObjectURL = objectURL;
             videoElement.src = objectURL;
             showP2PStatus('📤 Paylaşılıyor...', 100);
+            
+            // ✅ Owner için P2P complete (lokal dosya)
+            isP2PDownloadComplete = true;
         }
     } else {
-        // Normal URL modu
+        // Normal URL modu - P2P yok
         setupAdaptiveSource(currentRoomData.videoUrl);
+        isP2PDownloadComplete = true; // URL modunda her zaman aktif
     }
 
     const playListener = () => {
@@ -90,7 +153,7 @@
         videoElement.addEventListener('pause', pauseListener);
         videoElement.addEventListener('seeked', seekedListener);
 
-        videoElement.listeners.push(
+        videoElement._listeners.push(
             { event: 'play', handler: playListener },
             { event: 'pause', handler: pauseListener },
             { event: 'seeked', handler: seekedListener }
@@ -161,4 +224,32 @@
 
     // ✅ VR UI Panel oluştur (sol tarafta)
     createVRUIPanel();
+}
+
+// ✅ YENİ: Kontrolleri devre dışı bırak
+function disableAllControls() {
+    const controls = ['btn-play', 'btn-pause', 'btn-stop', 'btn-rewind', 'btn-forward', 'btn-sync'];
+    controls.forEach(id => {
+        const btn = getCachedElement(id);
+        if (btn) {
+            btn.disabled = true;
+            btn.style.opacity = '0.4';
+            btn.style.cursor = 'not-allowed';
+        }
+    });
+    debugLog('🔒 Controls disabled - P2P downloading');
+}
+
+// ✅ YENİ: Kontrolleri aktif et
+function enableAllControls() {
+    const controls = ['btn-play', 'btn-pause', 'btn-stop', 'btn-rewind', 'btn-forward', 'btn-sync'];
+    controls.forEach(id => {
+        const btn = getCachedElement(id);
+        if (btn) {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+        }
+    });
+    debugLog('✅ Controls enabled - P2P ready');
 }

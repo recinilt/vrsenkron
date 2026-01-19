@@ -1,12 +1,17 @@
-
-        
-        function listenKeyframes() {
+function listenKeyframes() {
             const ref = db.ref('rooms/' + currentRoomId + '/keyframes').limitToLast(1);
             trackListener(ref);
 
             ref.on('child_added', snapshot => {
                 const keyframe = snapshot.val();
                 if (!videoElement) return;
+
+                // ✅ YENİ: P2P indirme tamamlanmadıysa keyframe sync yapma
+                const isP2PMode = currentRoomData && currentRoomData.p2p && currentRoomData.p2p.magnetURI;
+                if (isP2PMode && !isP2PDownloadComplete) {
+                    debugLog('⚠️ Keyframe sync disabled - P2P downloading');
+                    return;
+                }
 
                 // ✅ FIX: isHardSeeking kontrolü eklendi
                 if (syncState || isBuffering || isSeeking || isHardSeeking) return;

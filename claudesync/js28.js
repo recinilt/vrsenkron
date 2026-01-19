@@ -1,8 +1,7 @@
-        
-        // ==================== SYNC MECHANISM ====================
+// ==================== SYNC MECHANISM ====================
         
         function initiateSync() {
-            if (!currentRoomId || !videoElement) return;
+            if (!currentRoomId || !videoElement || !isRoomOwner) return;
             
             debugLog('🔄 Sync initiated by user');
             

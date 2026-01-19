@@ -394,6 +394,19 @@ function syncYouTubeVideo() {
         ytPlayer.seekTo(expectedTime, true);
         lastYTSeekTime = now; // Cooldown başlat
         
+        // ✅ FIX: Seek sonrası play komutu ver (state.isPlaying true ise)
+        if (state.isPlaying) {
+            // Seek sonrası biraz bekle, sonra play
+            trackTimeout(setTimeout(() => {
+                if (ytPlayer && ytPlayerReady && currentRoomData && currentRoomData.videoState && currentRoomData.videoState.isPlaying) {
+                    ytPlayer.playVideo();
+                    debugLog('▶️ YouTube: play after seek');
+                }
+            }, 300));
+        }
+        
+        return; // Seek sonrası çık, rate ayarı yapma
+        
     } else if (drift > 500 && state.isPlaying) {
         // Küçük sapmalarda playback rate ayarla (sadece oynatma durumundayken)
         const behind = currentTime < expectedTime;

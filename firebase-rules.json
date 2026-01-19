@@ -46,10 +46,10 @@
           ".read": "auth != null",
           ".write": "auth != null",
           "videoId": {
-            ".validate": "newData.isString() && newData.val().length >= 11 && newData.val().length <= 20"
+            ".validate": "newData.isString() && (newData.val() === '' || (newData.val().length >= 11 && newData.val().length <= 20))"
           },
           "originalUrl": {
-            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500"
+            ".validate": "newData.isString() && newData.val().length <= 500"
           },
           "$other": {
             ".validate": false

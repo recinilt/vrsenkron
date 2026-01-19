@@ -1,3 +1,4 @@
+
 // ==================== YOUTUBE 2D SCENE ====================
 async function createYouTube2DScene() {
     debugLog('🎬 Creating YouTube 2D scene...');
@@ -20,9 +21,6 @@ async function createYouTube2DScene() {
         
         // Sync interval başlat
         startYouTubeSyncInterval();
-        
-        // ✅ YENİ: Video değişikliği dinle (tüm kullanıcılar için)
-        listenYouTubeVideoChange();
         
         // ✅ FIX: applyYouTubeVideoState çağrısı kaldırıldı
         // Zaten js44.js onReady callback'inde çağrılıyor

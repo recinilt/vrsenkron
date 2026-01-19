@@ -113,13 +113,3 @@ let youtubeVideoId = null;
 let ytApiLoaded = false;
 let ytPlayerStateInterval = null;
 let lastYTSyncTime = 0;
-
-// ==================== YOUTUBE SEARCH API ====================
-// ⚠️ Google Cloud Console'dan API key alıp buraya yapıştır
-// https://console.cloud.google.com → APIs & Services → Credentials → Create API Key
-// YouTube Data API v3'ü etkinleştirmeyi unutma!
-//const YOUTUBE_API_KEY = 'YOUR_API_KEY_HERE'; ytapi.js dosyasından alınıyor
-
-// Arama state
-let ytSearchResults = [];
-let ytSearchLoading = false;

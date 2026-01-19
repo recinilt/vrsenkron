@@ -201,6 +201,19 @@ function ytPlayVideo() {
     lastCommandSource = 'self';
     ytPlayer.playVideo();
     
+    // ✅ FIX: Firebase'e isPlaying: true yaz
+    const currentTime = ytPlayer.getCurrentTime();
+    const serverTime = getServerTime();
+    
+    db.ref('rooms/' + currentRoomId + '/videoState').update({
+        isPlaying: true,
+        currentTime: currentTime,
+        startTimestamp: serverTime,
+        lastUpdate: firebase.database.ServerValue.TIMESTAMP
+    });
+    
+    debugLog('▶️ YouTube play command sent to Firebase');
+    
     trackTimeout(setTimeout(() => {
         lastCommandSource = null;
     }, 500));

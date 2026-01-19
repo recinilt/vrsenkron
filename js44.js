@@ -304,7 +304,7 @@ function ytSeekForward() {
 
 // ==================== YOUTUBE SYNC ====================
 
-// ✅ FIX: YouTube video state'ini uygula (onReady'de çağrılır)
+// ✅ FIX: YouTube video state'ini uygula (SADECE onReady'de 1 kere çağrılır)
 function applyYouTubeVideoState(state) {
     if (!ytPlayer || !ytPlayerReady || !state) {
         debugLog('⚠️ applyYouTubeVideoState: player not ready or no state');
@@ -326,16 +326,18 @@ function applyYouTubeVideoState(state) {
         // Pozisyona git
         if (targetTime > 0) {
             ytPlayer.seekTo(targetTime, true);
-            debugLog('📍 YouTube seek to:', targetTime);
+            debugLog('📍 YouTube initial seek to:', targetTime);
         }
         
-        // Play/Pause durumu - NOT: muted autoplay ile video zaten oynuyor olabilir
-        // Bu yüzden sadece pause gerekiyorsa pause yap
-        if (!state.isPlaying) {
+        // Play/Pause durumu
+        if (state.isPlaying) {
+            // ✅ FIX: isPlaying true ise play dene (muted autoplay ile çalışmalı)
+            ytPlayer.playVideo();
+            debugLog('▶️ YouTube play attempted (initial state)');
+        } else {
             ytPlayer.pauseVideo();
             debugLog('⏸️ YouTube paused (initial state)');
         }
-        // isPlaying true ise video zaten autoplay ile oynuyor (muted)
         
     } catch (e) {
         console.warn('applyYouTubeVideoState error:', e);

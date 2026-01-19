@@ -37,9 +37,7 @@ function listenVideoState() {
                 // ✅ YouTube modunda farklı işle
                 if (isYouTubeMode) {
                     if (!isRoomOwner && ytPlayer && ytPlayerReady) {
-                        // ✅ FIX: applyYouTubeVideoState yerine syncYouTubeVideo kullan
-                        // applyYouTubeVideoState sadece onReady'de 1 kere çağrılmalı
-                        syncYouTubeVideo();
+                        applyYouTubeVideoState(newState);
                     }
                     return;
                 }

@@ -265,8 +265,10 @@ async function createYouTube2DScene() {
         // Sync interval başlat
         startYouTubeSyncInterval();
         
-        // ✅ FIX: applyYouTubeVideoState çağrısı kaldırıldı
-        // Zaten js44.js onReady callback'inde çağrılıyor
+        // Mevcut video state'i uygula
+        if (currentRoomData.videoState) {
+            applyYouTubeVideoState(currentRoomData.videoState);
+        }
         
         debugLog('✅ YouTube 2D scene created successfully');
         
@@ -276,8 +278,32 @@ async function createYouTube2DScene() {
     }
 }
 
-// ✅ FIX: applyYouTubeVideoState fonksiyonu kaldırıldı
-// js44.js'te daha güncel versiyonu var
+// YouTube video state uygula
+function applyYouTubeVideoState(state) {
+    if (!ytPlayer || !ytPlayerReady || !state) return;
+    
+    const serverTime = getServerTime();
+    let targetTime = state.currentTime;
+    
+    if (state.isPlaying) {
+        const elapsed = (serverTime - state.startTimestamp) / 1000;
+        if (isFinite(elapsed) && elapsed >= 0) {
+            targetTime = state.currentTime + elapsed;
+        }
+    }
+    
+    // Pozisyona git
+    ytPlayer.seekTo(targetTime, true);
+    
+    // Play/Pause durumu
+    if (state.isPlaying) {
+        ytPlayer.playVideo();
+    } else {
+        ytPlayer.pauseVideo();
+    }
+    
+    debugLog('✅ YouTube video state applied, time:', targetTime, 'playing:', state.isPlaying);
+}
 
 // ✅ YENİ: Kontrolleri devre dışı bırak
 function disableAllControls() {

@@ -1,5 +1,9 @@
 # 🎬 VR Cinema ULTRA - Teknik Dokümantasyon
 
+> ⚠️ **DİKKAT:** Bu dokümantasyon manuel olarak güncellenmektedir. Dosyalar güncellenip bu MD güncellenmemiş olabilir. **Her zaman asıl kaynak kodları (js01-js42, index.html, styles.css, firebase-rules.json) referans alın.** Bu MD sadece genel bakış sağlar.
+
+---
+
 ## 📋 İçindekiler
 - [Proje Genel Bakış](#proje-genel-bakış)
 - [Teknoloji Stack](#teknoloji-stack)
@@ -12,6 +16,7 @@
 - [Senkronizasyon Mekanizması](#senkronizasyon-mekanizması)
 - [P2P (WebTorrent) Desteği](#p2p-webtorrent-desteği)
 - [Adaptive Streaming (ABR)](#adaptive-streaming-abr)
+- [Ownership Request Sistemi](#ownership-request-sistemi)
 - [Performans Optimizasyonları](#performans-optimizasyonları)
 - [Bilinen Sorunlar ve Çözümler](#bilinen-sorunlar-ve-çözümler)
 
@@ -29,6 +34,7 @@
 - ✅ P2P video paylaşımı (WebTorrent)
 - ✅ Adaptive streaming (HLS/DASH)
 - ✅ Otomatik sahiplik transferi
+- ✅ Ownership Request sistemi (kullanıcı sahiplik isteyebilir)
 - ✅ Buffer yönetimi
 - ✅ Drift düzeltme mekanizması
 - ✅ VR UI Panel (ekran kontrol, ses, video, seek bar)
@@ -63,7 +69,7 @@
 
 ### Modüler JavaScript Yapısı
 
-Proje 41 ayrı JavaScript dosyasına bölünmüştür:
+Proje **42 ayrı JavaScript dosyasına** bölünmüştür:
 
 | Dosya | Görev |
 |-------|-------|
@@ -86,7 +92,7 @@ Proje 41 ayrı JavaScript dosyasına bölünmüştür:
 | js17.js | Firebase batch updates |
 | js18.js | Oda oluşturma |
 | js19.js | Odaya katılma |
-| js20.js | Sahiplik transferi |
+| js20.js | Sahiplik transferi (otomatik) |
 | js21.js | Odadan ayrılma |
 | js22.js | Oda listesi gösterme |
 | js23.js | UI geçişleri |
@@ -108,6 +114,7 @@ Proje 41 ayrı JavaScript dosyasına bölünmüştür:
 | js39.js | Sahip kontrolü |
 | js40.js | Periodic tasks ve init |
 | js41.js | VR UI Panel (ekran, ses, video, seek bar) |
+| js42.js | **Ownership Request sistemi** |
 
 ---
 
@@ -147,9 +154,10 @@ Proje 41 ayrı JavaScript dosyasına bölünmüştür:
 - Ses seviyesi göstergesi
 
 ### 5. Sahiplik Sistemi
-- Oda sahibi ayrılınca otomatik transfer
+- Oda sahibi ayrılınca otomatik transfer (js20.js)
 - En eski katılımcıya sahiplik verme
 - Owner-only kontroller
+- **Ownership Request** - kullanıcılar sahiplik isteyebilir (js42.js)
 
 ### 6. Performans Optimizasyonları
 - Memory leak prevention
@@ -189,7 +197,7 @@ firebase deploy --only database
 (firebase-rules.json dosyasını kullanın)
 
 3. **Dosyaları Yükleme**
-- Tüm JS dosyalarını sunucuya yükleyin
+- Tüm JS dosyalarını (js01-js42) sunucuya yükleyin
 - index.html ve styles.css'i yükleyin
 - Cache busting için `?v=timestamp` parametresi kullanılıyor
 
@@ -207,8 +215,8 @@ claudesync/                 # ← BİLGİ BANKASI (Ana Proje)
 ├── index.html              # Ana HTML dosyası
 ├── styles.css              # CSS stilleri
 ├── firebase-rules.json     # Firebase güvenlik kuralları
-├── CLAUDE.md               # Proje dokümantasyonu
-├── js01.js - js41.js       # 41 adet JavaScript modülü
+├── CLAUDE.md               # Proje dokümantasyonu (bu dosya)
+├── js01.js - js42.js       # 42 adet JavaScript modülü
 ```
 
 ---
@@ -246,12 +254,19 @@ rooms/
       │   └── $keyframeId/
       │       ├── time: number
       │       └── timestamp: timestamp
-      └── syncState/
-          ├── isBuffering: boolean
-          ├── syncedSeekPosition: number
-          ├── syncedPlayTime: number
-          ├── initiatedBy: string
-          └── initiatedAt: timestamp
+      ├── syncState/
+      │   ├── isBuffering: boolean
+      │   ├── syncedSeekPosition: number
+      │   ├── syncedPlayTime: number
+      │   ├── initiatedBy: string
+      │   └── initiatedAt: timestamp
+      └── ownershipRequests/
+          └── $requestId/
+              ├── fromUid: string
+              ├── timestamp: timestamp
+              ├── status: "pending" | "accepted" | "rejected"
+              ├── expiresAt: number
+              └── rejectedAt: timestamp (optional)
 ```
 
 ---
@@ -297,6 +312,18 @@ rooms/
 | `createVRSeekBar(panel)` | Hassas seek bar oluşturur |
 | `seekToPosition(percentage)` | Belirtilen pozisyona atlar |
 
+### Ownership Request (js42.js)
+
+| Fonksiyon | Görev |
+|-----------|-------|
+| `sendOwnershipRequest()` | Sahiplik isteği gönderir |
+| `listenOwnershipRequests()` | Owner için gelen istekleri dinler |
+| `showOwnershipRequestModal()` | İstek modalını gösterir |
+| `acceptOwnershipRequest()` | İsteği kabul eder, sahipliği devreder |
+| `rejectOwnershipRequest()` | İsteği reddeder |
+| `initOwnershipRequestSystem()` | Sistemi başlatır |
+| `cleanupOwnershipRequests()` | Temizlik yapar |
+
 ### Cleanup & Memory Management
 
 | Fonksiyon | Dosya | Görev |
@@ -304,6 +331,7 @@ rooms/
 | `fullCleanup()` | js16.js | Tüm kaynakları temizler |
 | `clearVideoListeners()` | js09.js | Video listener'larını temizler |
 | `cleanupVRUIPanel()` | js41.js | VR panel'i temizler |
+| `cleanupOwnershipRequests()` | js42.js | Ownership request temizliği |
 
 ---
 
@@ -367,6 +395,34 @@ const WEBTORRENT_TRACKERS = [
 ```javascript
 const QUALITY_CAPS = [360, 480, 720];
 let abrMaxHeightCap = 720; // Kullanıcı ayarlayabilir
+```
+
+---
+
+## 🙋 Ownership Request Sistemi
+
+**js42.js** dosyasında implement edilmiştir.
+
+### Özellikler
+- Katılımcılar "🙋 Sahiplik İste" butonuyla sahiplik talep edebilir
+- Owner'a modal ile bildirim gelir (60 saniye timeout)
+- Kabul/Reddet seçenekleri
+- Reddedilirse 2 dakika cooldown
+- Kuyruk sistemi (aynı anda tek istek)
+
+### Sabitler
+```javascript
+const OWNERSHIP_REQUEST_TIMEOUT = 60000;  // 60 saniye
+const OWNERSHIP_REQUEST_COOLDOWN = 120000; // 2 dakika
+```
+
+### State Değişkenleri (js02.js)
+```javascript
+let ownershipRequestListener = null;
+let ownershipRequestTimeoutInterval = null;
+let lastOwnershipRequestTime = 0;
+let pendingOwnershipRequest = null;
+let currentRequestModal = null;
 ```
 
 ---
@@ -447,6 +503,7 @@ function queueFirebaseUpdate(path, value) {
 | ⏪ -10s | 10 saniye geri |
 | ⏩ +10s | 10 saniye ileri |
 | 🔄 Sync | Tüm izleyicileri senkronize eder |
+| 🙋 Sahiplik İste | Sahiplik talep eder (viewer için) |
 
 ### Keyboard Kısayolları
 | Tuş | Görev |
@@ -479,6 +536,9 @@ const TIER2_THRESHOLD = 800;
 const TIER3_THRESHOLD = 1500;
 const LARGE_DRIFT_THRESHOLD = 9000;
 const HARD_SEEK_MIN_INTERVAL = 2000;
+
+const OWNERSHIP_REQUEST_TIMEOUT = 60000;
+const OWNERSHIP_REQUEST_COOLDOWN = 120000;
 ```
 
 ---
@@ -498,11 +558,12 @@ const HARD_SEEK_MIN_INTERVAL = 2000;
 <script>
 const v = new Date().getTime();
 document.write('<script src="js01.js?v=' + v + '"><\/script>');
-// ... js01.js - js41.js
+// ... js01.js - js42.js
 </script>
 ```
 
 ---
 
-**Versiyon:** 3.7  
-**Son Güncelleme:** 2025
+**Versiyon:** 3.8  
+**Son Güncelleme:** Ocak 2025  
+**Dosya Sayısı:** 42 JS + 1 HTML + 1 CSS + 1 Firebase Rules

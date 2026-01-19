@@ -1,5 +1,4 @@
-        
-        function cleanupOldData() {
+function cleanupOldData() {
             if (!currentRoomId || !isRoomOwner) return;
             
             try {
@@ -168,8 +167,26 @@ AFRAME.registerComponent('video-texture-fix', {
             }
             
             // ✅ FIX: Keyboard listener'ı referansla kaydet (cleanup için)
+            // ✅ FIX: Input focus ve YouTube modu kontrolü eklendi
             keydownHandler = (e) => {
                 if (!currentRoomId || !isRoomOwner) return;
+                
+                // ✅ FIX: Input alanına focus varsa klavye kısayollarını devre dışı bırak
+                const activeElement = document.activeElement;
+                const isInputFocused = activeElement && (
+                    activeElement.tagName === 'INPUT' || 
+                    activeElement.tagName === 'TEXTAREA' ||
+                    activeElement.isContentEditable
+                );
+                
+                if (isInputFocused) {
+                    return; // Input'a yazıyorken kısayolları çalıştırma
+                }
+                
+                // ✅ FIX: YouTube modunda VR kısayollarını devre dışı bırak
+                if (isYouTubeMode) {
+                    return; // YouTube modunda klavye kısayolları yok
+                }
                 
                 switch(e.key) {
                     case ' ':

@@ -97,6 +97,14 @@ let currentRequestModal = null;
 const OWNERSHIP_REQUEST_TIMEOUT = 60000; // 60 saniye
 const OWNERSHIP_REQUEST_COOLDOWN = 120000; // 2 dakika
 
+// ==================== SYNC REQUEST STATE ====================
+let syncRequestListener = null;
+let currentSyncRequestModal = null;
+let pendingSyncRequest = null;
+let syncPlayAtTimeTimeout = null;
+const SYNC_REQUEST_TIMEOUT = 30000; // 30 saniye
+const SYNC_PLAY_DELAY = 3000; // 3 saniye sonra başlat
+
 // ==================== YOUTUBE STATE ====================
 let ytPlayer = null;
 let ytPlayerReady = false;

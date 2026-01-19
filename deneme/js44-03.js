@@ -199,4 +199,4 @@ function updateYouTubeTimeDisplay() {
         const percent = (currentTime / duration) * 100;
         progressBar.style.width = percent + '%';
     }
-}
+}

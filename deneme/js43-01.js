@@ -246,4 +246,4 @@ document.addEventListener('keydown', resumeSpatialAudio, { once: true });
 function toggleSpatialAudioBtn() {
     const enabled = toggleSpatialAudio();
     updateSpatialAudioButton(enabled);
-}
+}

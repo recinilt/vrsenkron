@@ -151,7 +151,7 @@
           ".write": "auth != null",
           
           "isBuffering": {
-            ".validate": "newData.isBoolean()"
+            ".validate": "newData.isBoolean() || !newData.exists()"
           },
           
           "syncedSeekPosition": {
@@ -159,7 +159,11 @@
           },
           
           "syncedPlayTime": {
-            ".validate": "(newData.isNumber() && newData.val() > 0) || newData.val() === null"
+            ".validate": "(newData.isNumber() && newData.val() > 0) || newData.val() === null || !newData.exists()"
+          },
+          
+          "playAtTime": {
+            ".validate": "(newData.isNumber() && newData.val() > 0) || newData.val() === null || !newData.exists()"
           },
           
           "initiatedBy": {
@@ -172,6 +176,39 @@
           
           "$other": {
             ".validate": false
+          }
+        },
+        
+        "syncRequests": {
+          ".read": "auth != null",
+          ".indexOn": ["fromUid", "status", "timestamp"],
+          
+          "$requestId": {
+            ".write": "auth != null && (auth.uid === $requestId || data.parent().parent().child('owner').val() === auth.uid || !newData.exists())",
+            
+            "fromUid": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            
+            "currentPosition": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 86400"
+            },
+            
+            "timestamp": {
+              ".validate": "newData.isNumber() || newData.val() === '.sv'"
+            },
+            
+            "status": {
+              ".validate": "newData.isString() && (newData.val() === 'pending' || newData.val() === 'rejected')"
+            },
+            
+            "expiresAt": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            },
+            
+            "$other": {
+              ".validate": false
+            }
           }
         },
         

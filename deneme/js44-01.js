@@ -240,4 +240,4 @@ function ytPauseVideo() {
     trackTimeout(setTimeout(() => {
         lastCommandSource = null;
     }, 500));
-}
+}

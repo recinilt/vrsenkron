@@ -606,6 +606,110 @@
             box-shadow: none;
         }
         
+        /* ==================== SYNC REQUEST MODAL ==================== */
+        .sync-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease;
+        }
+        
+        .sync-modal {
+            background: linear-gradient(145deg, #2a2a40, #1a1a2e);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 0;
+            width: 90%;
+            max-width: 360px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .sync-modal-header {
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        #sync-modal-timer {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 13px;
+        }
+        
+        .sync-modal-body {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .sync-modal-body p {
+            margin-bottom: 10px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .sync-modal-uid {
+            font-size: 12px !important;
+            opacity: 0.7;
+            font-family: monospace;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 6px 12px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+        
+        .sync-modal-buttons {
+            display: flex;
+            gap: 10px;
+            padding: 0 20px 20px;
+        }
+        
+        .sync-modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 0;
+        }
+        
+        .sync-btn-accept {
+            background: linear-gradient(135deg, #4ade80, #22c55e);
+            color: white;
+        }
+        
+        .sync-btn-accept:hover {
+            transform: scale(1.02);
+            box-shadow: 0 5px 20px rgba(74, 222, 128, 0.4);
+        }
+        
+        .sync-btn-reject {
+            background: linear-gradient(135deg, #f87171, #ef4444);
+            color: white;
+        }
+        
+        .sync-btn-reject:hover {
+            transform: scale(1.02);
+            box-shadow: 0 5px 20px rgba(248, 113, 113, 0.4);
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 15px;
@@ -625,6 +729,9 @@
                 font-size: 12px;
             }
             .ownership-modal {
+                max-width: 320px;
+            }
+            .sync-modal {
                 max-width: 320px;
             }
             

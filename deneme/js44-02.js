@@ -88,4 +88,4 @@ function applyYouTubeVideoState(state) {
     
     // ✅ FIX: Bu fonksiyon artık kullanılmıyor, sync interval hallediyor
     debugLog('ℹ️ applyYouTubeVideoState called but sync interval handles this');
-}
+}

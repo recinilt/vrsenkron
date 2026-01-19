@@ -247,4 +247,4 @@ function scaleScreen(direction) {
     
     screen.setAttribute('scale', `${currentScreenScale} ${currentScreenScale} ${currentScreenScale}`);
     debugLog('📐 Ekran boyutu:', currentScreenScale.toFixed(2) + 'x');
-}
+}

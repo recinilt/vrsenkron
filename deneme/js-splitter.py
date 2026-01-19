@@ -13,6 +13,77 @@ import glob
 from pathlib import Path
 
 
+def detect_encoding(file_path):
+    """
+    Dosyanın encoding'ini tespit eder.
+    BOM'a bakarak veya UTF-8 validasyonu yaparak.
+    """
+    with open(file_path, 'rb') as f:
+        raw = f.read()
+    
+    # UTF-8 BOM kontrolü
+    if raw[:3] == b'\xef\xbb\xbf':
+        return 'utf-8-sig', raw[3:]  # BOM'u atla
+    
+    # UTF-16 BE BOM
+    if raw[:2] == b'\xfe\xff':
+        return 'utf-16-be', raw[2:]
+    
+    # UTF-16 LE BOM
+    if raw[:2] == b'\xff\xfe':
+        return 'utf-16-le', raw[2:]
+    
+    # UTF-8 validation
+    try:
+        raw.decode('utf-8')
+        return 'utf-8', raw
+    except UnicodeDecodeError:
+        pass
+    
+    # Fallback: windows-1254 (Türkçe)
+    return 'windows-1254', raw
+
+
+def read_file_utf8(file_path):
+    """
+    Dosyayı okur, encoding'i tespit eder ve UTF-8 string olarak döndürür.
+    BOM varsa kaldırır.
+    """
+    encoding, raw_data = detect_encoding(file_path)
+    
+    try:
+        if encoding in ['utf-8', 'utf-8-sig']:
+            text = raw_data.decode('utf-8')
+        elif encoding == 'utf-16-be':
+            text = raw_data.decode('utf-16-be')
+        elif encoding == 'utf-16-le':
+            text = raw_data.decode('utf-16-le')
+        else:
+            text = raw_data.decode(encoding, errors='replace')
+    except UnicodeDecodeError:
+        # Son çare: UTF-8 with replacement
+        text = raw_data.decode('utf-8', errors='replace')
+    
+    # String seviyesinde BOM karakteri kontrolü
+    if text and text[0] == '\ufeff':
+        text = text[1:]
+    
+    return text
+
+
+def write_file_utf8_no_bom(file_path, content):
+    """
+    Dosyayı UTF-8 BOM'suz olarak yazar.
+    """
+    # String başında BOM varsa kaldır
+    if content and content[0] == '\ufeff':
+        content = content[1:]
+    
+    # UTF-8 BOM'suz olarak yaz
+    with open(file_path, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(content)
+
+
 def split_js_into_units(js_content):
     """
     JS kodunu mantıksal birimlere (unit) ayırır.
@@ -220,8 +291,8 @@ def process_directory(directory, max_lines):
     for js_path in sorted(js_files):
         filename = os.path.basename(js_path)
         
-        with open(js_path, 'r', encoding='utf-8', errors='ignore') as f:
-            content = f.read()
+        # UTF-8 BOM'suz olarak oku
+        content = read_file_utf8(js_path)
         
         line_count = content.count('\n') + 1
         
@@ -249,13 +320,12 @@ def process_directory(directory, max_lines):
         
         print(f"  → {part_count} parçaya bölündü:")
         
-        # Yeni dosyaları yaz
+        # Yeni dosyaları yaz (UTF-8 BOM'suz)
         for i, (part_content, new_name) in enumerate(zip(parts, new_names)):
             new_path = os.path.join(directory, new_name)
             part_lines = part_content.count('\n') + 1
             
-            with open(new_path, 'w', encoding='utf-8') as f:
-                f.write(part_content)
+            write_file_utf8_no_bom(new_path, part_content)
             
             print(f"     • {new_name} ({part_lines} satır)")
         
@@ -283,8 +353,8 @@ def process_directory(directory, max_lines):
     for html_path in html_files:
         html_filename = os.path.basename(html_path)
         
-        with open(html_path, 'r', encoding='utf-8', errors='ignore') as f:
-            html_content = f.read()
+        # UTF-8 BOM'suz olarak oku
+        html_content = read_file_utf8(html_path)
         
         original_content = html_content
         changes = []
@@ -296,9 +366,9 @@ def process_directory(directory, max_lines):
                 changes.append(f"{old_name} → {', '.join(new_names)}")
         
         if html_content != original_content:
-            with open(html_path, 'w', encoding='utf-8') as f:
-                f.write(html_content)
-            print(f"✓ {html_filename} güncellendi:")
+            # UTF-8 BOM'suz olarak yaz
+            write_file_utf8_no_bom(html_path, html_content)
+            print(f"✓ {html_filename} güncellendi (UTF-8 BOM'suz):")
             for change in changes:
                 print(f"    {change}")
         else:

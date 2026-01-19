@@ -244,4 +244,4 @@ function showUnmuteOverlay() {
     
     document.body.appendChild(overlay);
     debugLog('🔊 Unmute overlay shown');
-}
+}

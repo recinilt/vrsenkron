@@ -5,8 +5,7 @@
 // ============================================
 
 // ==================== VARIABLES ====================
-let ytSearchLoading = false;
-let ytSearchResults = [];
+// ytSearchLoading ve ytSearchResults js02.js'de tanımlı
 
 // ==================== YOUTUBE SEARCH FUNCTIONS ====================
 

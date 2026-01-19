@@ -15,6 +15,11 @@
             if (typeof cleanupOwnershipRequests === 'function') {
                 cleanupOwnershipRequests();
             }
+            
+            // ✅ YENİ: Spatial Audio cleanup
+            if (typeof cleanupSpatialAudio === 'function') {
+                cleanupSpatialAudio();
+            }
 
             // Flush pending Firebase updates first
             if (firebaseBatchTimeout) {

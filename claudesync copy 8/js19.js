@@ -1,5 +1,4 @@
-        
-        // ✅ FIX #3: joinRoom race condition önleme
+// ✅ FIX #3: joinRoom race condition önleme
         async function joinRoom(roomId) {
             // ✅ FIX #3: Yarışma önleme - zaten katılım varsa çık
             if (isJoiningRoom) {
@@ -74,6 +73,12 @@
                 
                 // ✅ YENİ: Ownership request sistemini başlat
                 initOwnershipRequestSystem();
+                
+                // ✅ Sync butonu sadece owner için aktif
+                const syncBtn = getCachedElement('btn-sync');
+                if (syncBtn) {
+                    syncBtn.disabled = !isRoomOwner;
+                }
                 
                 isJoiningRoom = false;
                 

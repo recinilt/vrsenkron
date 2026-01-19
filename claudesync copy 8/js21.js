@@ -16,11 +16,6 @@
             // ✅ YENİ: Ownership request cleanup
             cleanupOwnershipRequests();
             
-            // ✅ YENİ: Spatial Audio cleanup
-            if (typeof cleanupSpatialAudio === 'function') {
-                cleanupSpatialAudio();
-            }
-            
             // Full cleanup (includes FIX #7 & #8)
             fullCleanup();
             

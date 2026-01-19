@@ -1,5 +1,4 @@
-        
-        function clearSyncState() {
+function clearSyncState() {
             syncState = null;
             syncModeActive = false;
             
@@ -58,7 +57,10 @@
                     if (pauseBtn) pauseBtn.disabled = false;
                     if (rewindBtn) rewindBtn.disabled = false;
                     if (forwardBtn) forwardBtn.disabled = false;
+                    if (syncBtn) syncBtn.disabled = false;
+                } else {
+                    // Viewer için sync butonu her zaman disabled
+                    if (syncBtn) syncBtn.disabled = true;
                 }
-                if (syncBtn) syncBtn.disabled = false;
             }
         }

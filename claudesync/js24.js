@@ -17,6 +17,11 @@
 
     const handleLoadedMetadata = () => {
         debugLog('📹 Video metadata loaded, duration:', videoElement.duration);
+        
+        // ✅ Spatial Audio başlat (video yüklendikten sonra)
+        if (typeof initSpatialAudio === 'function') {
+            initSpatialAudio(videoElement);
+        }
     };
 
     const handleError = (e) => {

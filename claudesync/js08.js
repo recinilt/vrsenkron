@@ -1,5 +1,4 @@
-        
-        function queueRAF(callback) {
+function queueRAF(callback) {
             rafQueue.push(callback);
             if (!rafScheduled) {
                 rafScheduled = true;
@@ -70,6 +69,12 @@
             if (p2pUpdateInterval) {
                 clearInterval(p2pUpdateInterval);
                 p2pUpdateInterval = null;
+            }
+            
+            // ✅ VR Seek bar update interval temizle
+            if (seekBarUpdateInterval) {
+                clearInterval(seekBarUpdateInterval);
+                seekBarUpdateInterval = null;
             }
             
             activeIntervals.forEach(id => clearInterval(id));

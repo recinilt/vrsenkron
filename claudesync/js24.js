@@ -1,5 +1,4 @@
-        
-        // ==================== 3D SCENE ====================
+// ==================== 3D SCENE ====================
         // ✅ FIX #1 & #2: Video listener'ları düzgün yönetim
         async function create3DScene() {
     const scene = document.querySelector('a-scene');
@@ -113,9 +112,10 @@
     };
     const size = screenSizes[currentRoomData.screenSize] || screenSizes.medium;
 
+    // ✅ Video ekranı - pozisyon z:-10 olarak güncellendi
     const videoScreen = document.createElement('a-plane');
     videoScreen.setAttribute('id', 'video-screen');
-    videoScreen.setAttribute('position', '0 2 -5');
+    videoScreen.setAttribute('position', `${screenPosition.x} ${screenPosition.y} ${screenPosition.z}`);
     videoScreen.setAttribute('width', size.width);
     videoScreen.setAttribute('height', size.height);
     videoScreen.setAttribute('material', 'src: #video-source; shader: flat');
@@ -157,4 +157,7 @@
 
         scene.appendChild(panel);
     }
+
+    // ✅ VR UI Panel oluştur (sol tarafta)
+    createVRUIPanel();
 }

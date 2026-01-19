@@ -1,4 +1,5 @@
-// ✅ FIX #7: leaveRoom - tüm temizlikler
+        
+        // ✅ FIX #7: leaveRoom - tüm temizlikler
         function leaveRoom() {
             if (currentRoomId && currentUser) {
                 db.ref('rooms/' + currentRoomId + '/activeViewers/' + currentUser.uid).remove();
@@ -9,9 +10,6 @@
             
             // ✅ FIX #1: Video listener'larını temizle
             clearVideoListeners();
-            
-            // ✅ VR UI Panel temizle
-            cleanupVRUIPanel();
             
             // Full cleanup (includes FIX #7 & #8)
             fullCleanup();
@@ -65,8 +63,4 @@
             currentRoomData = null;
             isRoomOwner = false;
             lastDriftValue = null;
-            
-            // ✅ VR Panel değişkenlerini sıfırla
-            screenPosition = { x: 0, y: 2, z: -10 };
-            currentScreenScale = 1.0;
         }

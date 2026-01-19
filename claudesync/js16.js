@@ -1,11 +1,15 @@
-        
-        // ✅ FIX #7 & #8: hashchange ve onDisconnect temizleme
+// ✅ FIX #7 & #8: hashchange ve onDisconnect temizleme
         function fullCleanup() {
             // ✅ ABR cleanup
             destroyAdaptiveStreaming();
             
             // ✅ P2P cleanup
             destroyP2PClient();
+
+            // ✅ VR UI Panel cleanup
+            if (typeof cleanupVRUIPanel === 'function') {
+                cleanupVRUIPanel();
+            }
 
             // Flush pending Firebase updates first
             if (firebaseBatchTimeout) {
@@ -70,6 +74,10 @@
             ownerTransferInProgress = false;
             selectedLocalFile = null;
             currentVideoSourceType = 'url';
+            
+            // ✅ VR Panel değişkenlerini sıfırla
+            screenPosition = { x: 0, y: 2, z: -10 };
+            currentScreenScale = 1.0;
             
             debugLog('🧹 Full cleanup completed');
         }

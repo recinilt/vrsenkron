@@ -1,5 +1,4 @@
-        
-        // Sync mechanism
+// Sync mechanism
         let syncState = null;
         let countdownInterval = null;
         let syncTimeoutId = null;
@@ -38,6 +37,18 @@
         let seekTimeoutId = null;
         let commandSourceTimeoutId = null;
         let videoStateUpdateDebounce = null;
+
+        // ✅ VR UI Panel değişkenleri
+        let screenPosition = { x: 0, y: 2, z: -10 };
+        let currentScreenScale = 1.0;
+        let seekBarUpdateInterval = null;
+        const VR_UI_CONFIG = {
+            position: { x: -5, y: 1.6, z: -3 },
+            rotation: { x: 0, y: 90, z: 0 },
+            scale: 0.7,
+            buttonSize: 0.28,
+            seekBarWidth: 1.8
+        };
 
         // ✅ MEMORY LEAK FIX: Object URL tracking
         let currentVideoObjectURL = null;

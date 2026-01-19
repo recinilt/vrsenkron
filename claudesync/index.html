@@ -20,7 +20,7 @@
     <!-- WebTorrent P2P -->
     <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
     
-    <STYLe></style>
+    <style></style>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -144,14 +144,14 @@
     <a-scene vr-mode-ui="enabled: true" loading-screen="enabled: false">
         <a-assets></a-assets>
         
-        <!-- Camera with cursor for VR interaction (optimized) -->
+        <!-- Camera with cursor for VR interaction (VR Panel için güncellendi) -->
         <a-camera position="0 1.6 0">
             <a-cursor
                 id="vr-cursor"
                 color="#4ade80"
-                raycaster="objects: .clickable; interval: 1000; far: 5"
+                raycaster="objects: .clickable; interval: 100; far: 20"
                 fuse="false"
-                visible="false">
+                visible="true">
             </a-cursor>
         </a-camera>
         
@@ -203,6 +203,7 @@ document.write('<script src="js37.js?v=' + v + '"><\/script>');
 document.write('<script src="js38.js?v=' + v + '"><\/script>');
 document.write('<script src="js39.js?v=' + v + '"><\/script>');
 document.write('<script src="js40.js?v=' + v + '"><\/script>');
+document.write('<script src="js41.js?v=' + v + '"><\/script>');
 </script>
 </body> 
 </html>

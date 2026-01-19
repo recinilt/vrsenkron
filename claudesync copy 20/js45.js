@@ -5,7 +5,8 @@
 // ============================================
 
 // ==================== VARIABLES ====================
-// ytSearchLoading ve ytSearchResults js02.js'de tanımlı
+let ytSearchLoading = false;
+let ytSearchResults = [];
 
 // ==================== YOUTUBE SEARCH FUNCTIONS ====================
 
@@ -111,42 +112,15 @@ async function selectYTSearchResult(videoId, title) {
             'videoState/lastUpdate': firebase.database.ServerValue.TIMESTAMP
         });
         
-        // ✅ FIX: Player yoksa oluştur
-        if (!ytPlayer || !ytPlayerReady) {
-            debugLog('🎬 Player yok, oluşturuluyor...');
-            
-            try {
-                await createYouTubePlayer(videoId, 'youtube-player-container');
-                
-                // Kontrolleri ayarla
-                updateYouTubeControls();
-                
-                // Sync interval başlat
-                startYouTubeSyncInterval();
-                
-                // Video değişikliği dinle
-                if (typeof listenYouTubeVideoChange === 'function') {
-                    listenYouTubeVideoChange();
-                }
-                
-                debugLog('✅ Player oluşturuldu ve video yüklendi');
-                
-            } catch (error) {
-                console.error('Player oluşturma hatası:', error);
-                showYouTubeError(error.message);
-            }
-        } else {
-            // Player var, sadece videoyu değiştir
+        // Lokal player'ı güncelle
+        if (ytPlayer && ytPlayerReady) {
             ytPlayer.loadVideoById(videoId);
             ytPlayer.pauseVideo();
-            debugLog('✅ Video değiştirildi (mevcut player)');
         }
         
         // Lokal state güncelle
         youtubeVideoId = videoId;
-        if (currentRoomData && currentRoomData.youtube) {
-            currentRoomData.youtube.videoId = videoId;
-        }
+        currentRoomData.youtube.videoId = videoId;
         
         debugLog('✅ Video değiştirildi:', videoId);
         
@@ -211,7 +185,7 @@ function listenYouTubeVideoChange() {
     const ref = db.ref('rooms/' + currentRoomId + '/youtube/videoId');
     trackListener(ref);
     
-    ref.on('value', async (snapshot) => {
+    ref.on('value', (snapshot) => {
         const newVideoId = snapshot.val();
         
         if (!newVideoId) return;
@@ -227,24 +201,11 @@ function listenYouTubeVideoChange() {
             currentRoomData.youtube.videoId = newVideoId;
         }
         
-        // ✅ FIX: Player yoksa oluştur (viewer için de)
-        if (!ytPlayer || !ytPlayerReady) {
-            debugLog('🎬 Viewer: Player yok, oluşturuluyor...');
-            
-            try {
-                await createYouTubePlayer(newVideoId, 'youtube-player-container');
-                updateYouTubeControls();
-                startYouTubeSyncInterval();
-                debugLog('✅ Viewer: Player oluşturuldu');
-            } catch (error) {
-                console.error('Viewer player oluşturma hatası:', error);
-                showYouTubeError(error.message);
-            }
-        } else {
-            // Player var, videoyu güncelle
+        // Player'ı güncelle
+        if (ytPlayer && ytPlayerReady) {
             ytPlayer.loadVideoById(newVideoId);
             
-            // Owner değilsek pause'da bekle
+            // Owner değilsek pause'da bekle (owner Firebase'i güncelleyecek)
             if (!isRoomOwner) {
                 ytPlayer.pauseVideo();
             }
@@ -256,7 +217,12 @@ function listenYouTubeVideoChange() {
 
 // Enter tuşu ile arama
 function handleYTSearchKeydown(event) {
-    // ✅ FIX: Tüm tuşlara izin ver (boşluk dahil), sadece Enter ve Escape'i yakala
+    // Boşluk tuşuna izin ver
+    if (event.key === ' ') {
+        // Default davranışa izin ver (boşluk yazılsın)
+        return;
+    }
+    
     if (event.key === 'Enter') {
         event.preventDefault();
         const input = document.getElementById('yt-search-input');
@@ -266,7 +232,6 @@ function handleYTSearchKeydown(event) {
     } else if (event.key === 'Escape') {
         hideYTSearchResults();
     }
-    // Diğer tüm tuşlar (boşluk dahil) normal davranır
 }
 
 // Arama butonuna tıklama

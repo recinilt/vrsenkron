@@ -67,11 +67,6 @@
                             updateRoomInfoDisplay();
                             updateOwnershipRequestButton();
                             
-                            // ✅ FIX: YouTube modundaysa kontrolleri güncelle (arama çubuğu görünsün)
-                            if (isYouTubeMode) {
-                                updateYouTubeControls();
-                            }
-                            
                         } catch (error) {
                             console.error('Sahiplik transfer hatası:', error);
                         } finally {

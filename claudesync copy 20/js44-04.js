@@ -190,12 +190,10 @@ function destroyYouTubePlayer() {
     debugLog('🧹 YouTube player destroyed');
 }
 
-// ✅ FIX: YouTube modu aktif mi kontrol et
-// videoId boş olsa bile youtube objesi varsa YouTube modundayız
+// YouTube modu aktif mi kontrol et
 function checkYouTubeMode() {
     if (!currentRoomData) return false;
-    // youtube objesi varsa (videoId boş olsa bile) YouTube modundayız
-    return currentRoomData.youtube !== undefined && currentRoomData.youtube !== null;
+    return currentRoomData.youtube && currentRoomData.youtube.videoId;
 }
 
 // ==================== UNMUTE OVERLAY (User Gesture için) ====================

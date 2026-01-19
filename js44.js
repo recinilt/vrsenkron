@@ -345,6 +345,19 @@ function syncYouTubeVideo() {
         if (state.isPlaying && ytState !== 1) {
             ytPlayer.playVideo();
             debugLog('▶️ YouTube: Trying to start playback (state:', ytState, ')');
+            
+            // 500ms sonra kontrol et - başlamadıysa mute edip tekrar dene
+            trackTimeout(setTimeout(() => {
+                if (ytPlayer && ytPlayerReady && currentRoomData && currentRoomData.videoState && currentRoomData.videoState.isPlaying) {
+                    const checkState = ytPlayer.getPlayerState();
+                    if (checkState !== YT.PlayerState.PLAYING && checkState !== YT.PlayerState.BUFFERING) {
+                        debugLog('⚠️ YouTube: initial play failed, trying muted');
+                        ytPlayer.mute();
+                        ytPlayer.playVideo();
+                        showUnmuteOverlay();
+                    }
+                }
+            }, 500));
         }
         return; // Seek yapmadan çık
     }
@@ -374,8 +387,26 @@ function syncYouTubeVideo() {
     const isYTPlaying = ytState === YT.PlayerState.PLAYING;
     
     if (state.isPlaying && !isYTPlaying) {
+        // ✅ FIX: Autoplay policy workaround
         ytPlayer.playVideo();
-        debugLog('▶️ YouTube sync: play');
+        debugLog('▶️ YouTube sync: play attempt');
+        
+        // 500ms sonra kontrol et - başlamadıysa mute edip tekrar dene
+        trackTimeout(setTimeout(() => {
+            if (ytPlayer && ytPlayerReady && currentRoomData && currentRoomData.videoState && currentRoomData.videoState.isPlaying) {
+                const checkState = ytPlayer.getPlayerState();
+                if (checkState !== YT.PlayerState.PLAYING && checkState !== YT.PlayerState.BUFFERING) {
+                    // Autoplay policy'ye takıldı - mute edip tekrar dene
+                    debugLog('⚠️ YouTube: play failed, trying muted');
+                    ytPlayer.mute();
+                    ytPlayer.playVideo();
+                    
+                    // Unmute overlay göster
+                    showUnmuteOverlay();
+                }
+            }
+        }, 500));
+        
     } else if (!state.isPlaying && isYTPlaying) {
         ytPlayer.pauseVideo();
         debugLog('⏸️ YouTube sync: pause');
@@ -400,7 +431,20 @@ function syncYouTubeVideo() {
             trackTimeout(setTimeout(() => {
                 if (ytPlayer && ytPlayerReady && currentRoomData && currentRoomData.videoState && currentRoomData.videoState.isPlaying) {
                     ytPlayer.playVideo();
-                    debugLog('▶️ YouTube: play after seek');
+                    debugLog('▶️ YouTube: play after seek attempt');
+                    
+                    // 500ms sonra kontrol et - başlamadıysa mute edip tekrar dene
+                    trackTimeout(setTimeout(() => {
+                        if (ytPlayer && ytPlayerReady && currentRoomData && currentRoomData.videoState && currentRoomData.videoState.isPlaying) {
+                            const checkState = ytPlayer.getPlayerState();
+                            if (checkState !== YT.PlayerState.PLAYING && checkState !== YT.PlayerState.BUFFERING) {
+                                debugLog('⚠️ YouTube: play after seek failed, trying muted');
+                                ytPlayer.mute();
+                                ytPlayer.playVideo();
+                                showUnmuteOverlay();
+                            }
+                        }
+                    }, 500));
                 }
             }, 300));
         }

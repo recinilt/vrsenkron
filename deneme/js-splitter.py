@@ -219,6 +219,23 @@ def get_new_filenames(original_name, part_count):
     return new_names
 
 
+def fix_all_script_closing_tags(html_content):
+    """
+    VSCode syntax highlighting icin tum script closing tag'lerini duzelir.
+    Ornek: <\\/script> veya <\\/script> -> <' + '/script>
+    """
+    # Farklı varyasyonları düzelt
+    result = html_content
+    
+    # <\\/script> -> <' + '/script>  (çift backslash)
+    result = result.replace("<\\\\/script>", "<' + '/script>")
+    
+    # <\/script> -> <' + '/script>  (tek backslash)
+    result = result.replace("<\\/script>", "<' + '/script>")
+    
+    return result
+
+
 def update_html_references(html_content, old_filename, new_filenames):
     """
     HTML içindeki JS referansını yeni dosyalarla değiştirir.
@@ -242,9 +259,12 @@ def update_html_references(html_content, old_filename, new_filenames):
         suffix = match.group(4)    # "><\/script>'
         closing = match.group(5)   # );
         
+        # VSCode syntax highlighting için <\/script> yerine <' + '/script> kullan
+        fixed_suffix = suffix.replace(r'<\/script>', "<' + '/script>").replace('<\\/script>', "<' + '/script>")
+        
         new_lines = []
         for new_name in new_filenames:
-            new_lines.append(f"{prefix}{new_name}{query}{suffix}{closing}")
+            new_lines.append(f"{prefix}{new_name}{query}{fixed_suffix}{closing}")
         return '\n'.join(new_lines)
     
     updated = re.sub(pattern_docwrite, replace_docwrite, updated, flags=re.IGNORECASE)
@@ -334,11 +354,6 @@ def process_directory(directory, max_lines):
         print(f"  → Orijinal {filename} silindi")
     
     # HTML dosyalarını güncelle
-    if not split_files:
-        print("\n" + "=" * 50)
-        print("Bölünen dosya olmadığı için HTML güncellenmedi.")
-        return
-    
     html_files = glob.glob(os.path.join(directory, '*.html')) + glob.glob(os.path.join(directory, '*.htm'))
     
     if not html_files:
@@ -365,12 +380,17 @@ def process_directory(directory, max_lines):
                 html_content = update_html_references(html_content, old_name, new_names)
                 changes.append(f"{old_name} → {', '.join(new_names)}")
         
+        # Tüm <\/script> ifadelerini VSCode-friendly formata çevir
+        html_content = fix_all_script_closing_tags(html_content)
+        
         if html_content != original_content:
             # UTF-8 BOM'suz olarak yaz
             write_file_utf8_no_bom(html_path, html_content)
             print(f"✓ {html_filename} güncellendi (UTF-8 BOM'suz):")
             for change in changes:
                 print(f"    {change}")
+            if not changes:
+                print(f"    (script tag'leri düzeltildi)")
         else:
             print(f"- {html_filename}: Değişiklik yok")
     

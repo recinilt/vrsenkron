@@ -366,7 +366,6 @@
             padding: 15px 20px;
             background: rgba(0, 0, 0, 0.9);
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            flex-shrink: 0;
         }
         
         .youtube-room-info {
@@ -390,14 +389,11 @@
             justify-content: center;
             background: #000;
             padding: 20px;
-            min-height: 0;
-            overflow: hidden;
         }
         
         #youtube-player-container {
             width: 100%;
             max-width: 1280px;
-            max-height: calc(100vh - 220px);
             aspect-ratio: 16/9;
             background: #111;
             border-radius: 8px;
@@ -430,7 +426,6 @@
             background: rgba(0, 0, 0, 0.95);
             padding: 15px 20px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
-            flex-shrink: 0;
         }
         
         .youtube-progress-bar {
@@ -647,9 +642,5 @@
             .youtube-time-info {
                 flex-direction: column;
                 gap: 8px;
-            }
-            
-            #youtube-player-container {
-                max-height: calc(100vh - 280px);
             }
         }

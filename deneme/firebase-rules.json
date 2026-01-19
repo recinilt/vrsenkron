@@ -27,7 +27,7 @@
         
         "p2p": {
           ".read": "auth != null",
-          ".write": "auth != null && (data.parent().child('owner').val() === auth.uid || !data.exists())",
+          ".write": "auth != null",
           "magnetURI": {
             ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 10000"
           },
@@ -70,10 +70,12 @@
         
         "activeViewers": {
           ".read": "auth != null",
+          ".write": "auth != null",
           ".indexOn": ["joinedAt", "lastSeen"],
           
           "$userId": {
-            ".write": "auth != null && auth.uid === $userId",
+            ".read": "auth != null",
+            ".write": "auth != null",
             
             "joinedAt": {
               ".validate": "newData.isNumber() || newData.val() === '.sv'"
@@ -128,9 +130,11 @@
         
         "keyframes": {
           ".read": "auth != null",
+          ".write": "auth != null",
           
           "$keyframeId": {
-            ".write": "auth != null && data.parent().parent().child('owner').val() === auth.uid",
+            ".read": "auth != null",
+            ".write": "auth != null",
             
             "time": {
               ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 86400"
@@ -155,7 +159,7 @@
           },
           
           "syncedSeekPosition": {
-            ".validate": "(newData.isNumber() && newData.val() >= 0 && newData.val() <= 86400) || newData.val() === null"
+            ".validate": "(newData.isNumber() && newData.val() >= 0 && newData.val() <= 86400) || newData.val() === null || !newData.exists()"
           },
           
           "syncedPlayTime": {
@@ -181,17 +185,19 @@
         
         "syncRequests": {
           ".read": "auth != null",
+          ".write": "auth != null",
           ".indexOn": ["fromUid", "status", "timestamp"],
           
           "$requestId": {
-            ".write": "auth != null && (auth.uid === $requestId || data.parent().parent().child('owner').val() === auth.uid || !newData.exists())",
+            ".read": "auth != null",
+            ".write": "auth != null",
             
             "fromUid": {
               ".validate": "newData.isString() && newData.val().length > 0"
             },
             
             "currentPosition": {
-              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 86400"
+              ".validate": "(newData.isNumber() && newData.val() >= 0 && newData.val() <= 86400) || !newData.exists()"
             },
             
             "timestamp": {
@@ -214,10 +220,12 @@
         
         "ownershipRequests": {
           ".read": "auth != null",
+          ".write": "auth != null",
           ".indexOn": ["fromUid", "status", "timestamp"],
           
           "$requestId": {
-            ".write": "auth != null && (newData.child('fromUid').val() === auth.uid || data.parent().parent().child('owner').val() === auth.uid || !newData.exists())",
+            ".read": "auth != null",
+            ".write": "auth != null",
             
             "fromUid": {
               ".validate": "newData.isString() && newData.val().length > 0"

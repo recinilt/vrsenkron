@@ -13,7 +13,7 @@
     videoElement.setAttribute('webkit-playsinline', '');
     videoElement.setAttribute('preload', 'auto');
 
-    videoElement.listeners = [];
+    videoElement._listeners = [];
 
     const handleLoadedMetadata = () => {
         debugLog('📹 Video metadata loaded, duration:', videoElement.duration);

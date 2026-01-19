@@ -1,52 +1,13 @@
         
-        // ✅ FIX #11: Countdown interval'ı track et
+        // ✅ Bu fonksiyon artık kullanılmıyor - yeni sistem playAtTime kullanıyor
+        // Backward compatibility için tutuluyor
         function startSyncCountdownFromState(state) {
-            if (!state.syncedPlayTime) return;
+            // Yeni sistemde bu fonksiyon çağrılmıyor
+            // applySyncState içinde playAtTime ile yönetiliyor
+            debugLog('⚠️ startSyncCountdownFromState called but deprecated');
             
-            const playTime = state.syncedPlayTime;
-            const now = Date.now();
-            
-            if (playTime <= now) {
-                // ✅ FIX: Timeout'u track et
-                trackTimeout(setTimeout(() => {
-                    executeSync(state);
-                }, 100));
-                return;
+            if (state && state.playAtTime) {
+                // Yeni sisteme yönlendir
+                applySyncState(state);
             }
-            
-            // ✅ INTERVAL FIX: DOM element'i döngü dışında cache'le
-            const countdownElement = getCachedElement('sync-countdown');
-            if (countdownElement) {
-                countdownElement.style.display = 'block';
-            }
-            
-            // ✅ FIX #11: Mevcut interval'ı temizle
-            if (countdownInterval) {
-                clearInterval(countdownInterval);
-                countdownInterval = null;
-            }
-            
-            countdownInterval = setInterval(() => {
-                const remaining = playTime - Date.now();
-                
-                if (remaining <= 0) {
-                    clearInterval(countdownInterval);
-                    countdownInterval = null;
-                    
-                    // ✅ FIX: Timeout'u track et
-                    trackTimeout(setTimeout(() => {
-                        executeSync(state);
-                    }, 100));
-                } else {
-                    const seconds = Math.ceil(remaining / 1000);
-                    // ✅ countdownElement döngü dışında cache'lendi
-                    if (countdownElement) {
-                        countdownElement.textContent = `▶️ ${seconds} saniye sonra başlıyor...`;
-                    }
-                    updateSyncUI(`⏱️ ${seconds} saniye sonra oynatılacak...`);
-                }
-            }, 100);
-            
-            // ✅ FIX #11: Interval'ı track et
-            trackInterval(countdownInterval);
         }

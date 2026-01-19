@@ -16,11 +16,6 @@
                 cleanupOwnershipRequests();
             }
             
-            // ✅ YENİ: Sync request cleanup
-            if (typeof cleanupSyncRequests === 'function') {
-                cleanupSyncRequests();
-            }
-            
             // ✅ YENİ: Spatial Audio cleanup
             if (typeof cleanupSpatialAudio === 'function') {
                 cleanupSpatialAudio();
@@ -102,9 +97,6 @@
             // ✅ YENİ: Ownership request değişkenlerini sıfırla
             lastOwnershipRequestTime = 0;
             pendingOwnershipRequest = null;
-            
-            // ✅ YENİ: Sync request değişkenlerini sıfırla
-            pendingSyncRequest = null;
             
             // ✅ YENİ: YouTube değişkenlerini sıfırla
             isYouTubeMode = false;

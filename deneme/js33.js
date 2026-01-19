@@ -17,24 +17,11 @@
         }
         
         function updateViewerPosition() {
-            if (!currentUser || !currentRoomId) return;
-            
-            let currentPosition = 0;
-            
-            // YouTube veya normal video
-            if (isYouTubeMode && ytPlayer && ytPlayerReady) {
-                try {
-                    currentPosition = ytPlayer.getCurrentTime() || 0;
-                } catch (e) {
-                    currentPosition = 0;
-                }
-            } else if (videoElement) {
-                currentPosition = videoElement.currentTime || 0;
-            }
+            if (!currentUser || !currentRoomId || !videoElement) return;
             
             try {
                 db.ref('rooms/' + currentRoomId + '/activeViewers/' + currentUser.uid + '/currentPosition')
-                    .set(currentPosition)
+                    .set(videoElement.currentTime)
                     .catch(() => {});
             } catch (error) {
                 console.warn('Position update error:', error);
@@ -47,11 +34,7 @@
         
 
 function syncVideoState() {
-    if (!isRoomOwner) return;
-    
-    // YouTube veya normal video
-    if (!isYouTubeMode && !videoElement) return;
-    if (isYouTubeMode && (!ytPlayer || !ytPlayerReady)) return;
+    if (!isRoomOwner || !videoElement) return;
 
     if (isSyncingVideoState) {
         debugLog('⚠️ syncVideoState already in progress, skipping');
@@ -60,22 +43,10 @@ function syncVideoState() {
 
     isSyncingVideoState = true;
     const serverTime = getServerTime();
-    
-    let isPlaying = false;
-    let currentTime = 0;
-    
-    if (isYouTubeMode) {
-        const state = ytPlayer.getPlayerState();
-        isPlaying = state === YT.PlayerState.PLAYING;
-        currentTime = ytPlayer.getCurrentTime() || 0;
-    } else {
-        isPlaying = !videoElement.paused;
-        currentTime = videoElement.currentTime || 0;
-    }
 
     db.ref(`rooms/${currentRoomId}/videoState`).update({
-        isPlaying: isPlaying,
-        currentTime: currentTime,
+        isPlaying: !videoElement.paused,
+        currentTime: videoElement.currentTime,
         startTimestamp: serverTime,
         lastUpdate: firebase.database.ServerValue.TIMESTAMP
     })

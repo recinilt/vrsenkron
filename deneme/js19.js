@@ -65,12 +65,8 @@
                 
                 if (isRoomOwner) {
                     startOwnerTasks();
-                    // ✅ YENİ: Sync isteklerini dinle
-                    listenSyncRequests();
                 } else {
                     listenKeyframes();
-                    // ✅ YENİ: Kendi sync isteğimin durumunu dinle
-                    listenMySyncRequestStatus();
                 }
                 
                 // Start all periodic tasks

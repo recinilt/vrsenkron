@@ -1,6 +1,6 @@
 # 🎬 VR Cinema ULTRA - Teknik Dokümantasyon
 
-> ⚠️ **DİKKAT:** Bu dokümantasyon manuel olarak güncellenmektedir. Dosyalar güncellenip bu MD güncellenmemiş olabilir. **Her zaman asıl kaynak kodları (js01-js42, index.html, styles.css, firebase-rules.json) referans alın.** Bu MD sadece genel bakış sağlar.
+> ⚠️ **DİKKAT:** Bu dokümantasyon manuel olarak güncellenmektedir. Dosyalar güncellenip bu MD güncellenmemiş olabilir. **Her zaman asıl kaynak kodları (js dosyaları, index.html, styles.css, firebase-rules.json) referans alın.** Bu MD sadece genel bakış sağlar.
 
 ---
 
@@ -16,7 +16,10 @@
 - [Senkronizasyon Mekanizması](#senkronizasyon-mekanizması)
 - [P2P (WebTorrent) Desteği](#p2p-webtorrent-desteği)
 - [Adaptive Streaming (ABR)](#adaptive-streaming-abr)
+- [YouTube 2D Watch Party](#youtube-2d-watch-party)
+- [Spatial Audio Sistemi](#spatial-audio-sistemi)
 - [Ownership Request Sistemi](#ownership-request-sistemi)
+- [Sync Request Sistemi](#sync-request-sistemi)
 - [Performans Optimizasyonları](#performans-optimizasyonları)
 - [Bilinen Sorunlar ve Çözümler](#bilinen-sorunlar-ve-çözümler)
 
@@ -24,7 +27,7 @@
 
 ## 🎯 Proje Genel Bakış
 
-**VR Cinema ULTRA**, çoklu kullanıcıların bir arada VR ortamında senkronize video izleyebileceği bir web uygulamasıdır.
+**VR Cinema ULTRA**, çoklu kullanıcıların bir arada VR ortamında veya 2D modda senkronize video izleyebileceği bir web uygulamasıdır.
 
 > **📌 TANIM:** Bu dokümantasyondaki **"BİLGİ BANKASI"** terimi, Claude'un document index'indeki `claudesync/` klasöründeki tüm proje dosyalarını ifade eder. Sohbete `/mnt/user-data/uploads/` yoluyla eklenen dosyalar ise **"Ekteki Dosyalar"** olarak anılır.
 
@@ -33,10 +36,13 @@
 - ✅ VR desteği (A-Frame)
 - ✅ P2P video paylaşımı (WebTorrent)
 - ✅ Adaptive streaming (HLS/DASH)
+- ✅ **YouTube 2D Watch Party** (VR yok, senkronize izleme)
+- ✅ **YouTube Arama** (oda içinde video değiştirme)
+- ✅ **Spatial Audio** (3D pozisyonel ses)
 - ✅ Otomatik sahiplik transferi
-- ✅ Ownership Request sistemi (kullanıcı sahiplik isteyebilir)
-- ✅ Buffer yönetimi
-- ✅ Drift düzeltme mekanizması
+- ✅ Ownership Request sistemi
+- ✅ Sync Request sistemi (viewer'dan sync isteği)
+- ✅ Buffer yönetimi ve drift düzeltme
 - ✅ VR UI Panel (ekran kontrol, ses, video, seek bar)
 
 ---
@@ -46,6 +52,8 @@
 ### Frontend
 - **A-Frame 1.6.0** - VR framework
 - **HTML5 Video** - Video oynatma
+- **YouTube IFrame API** - YouTube entegrasyonu
+- **Web Audio API** - Spatial Audio
 - **CSS3** - Stil ve animasyonlar
 
 ### Backend & Veritabanı
@@ -69,10 +77,11 @@
 
 ### Modüler JavaScript Yapısı
 
-Proje **42 ayrı JavaScript dosyasına** bölünmüştür:
+Proje modüler JavaScript dosyalarına bölünmüştür:
 
 | Dosya | Görev |
 |-------|-------|
+| ytapi.js | YouTube API Key (obfuscated) |
 | js01.js | Temel değişkenler ve konfigürasyon |
 | js02.js | Global state yönetimi |
 | js03.js | Adaptive streaming yönetimi |
@@ -82,7 +91,7 @@ Proje **42 ayrı JavaScript dosyasına** bölünmüştür:
 | js07.js | Firebase init ve helper'lar |
 | js08.js | RAF queue ve caching |
 | js09.js | Cleanup fonksiyonları |
-| js10.js | P2P video source switching |
+| js10.js | P2P/YouTube source switching |
 | js11.js | P2P client destroy |
 | js12.js | P2P seeding (yayıncı) |
 | js13.js | P2P joining (izleyici) |
@@ -96,14 +105,16 @@ Proje **42 ayrı JavaScript dosyasına** bölünmüştür:
 | js21.js | Odadan ayrılma |
 | js22.js | Oda listesi gösterme |
 | js23.js | UI geçişleri |
-| js24.js | 3D sahne oluşturma |
+| js24-01.js | 3D sahne oluşturma (VR) |
+| js24-02.js | YouTube 2D sahne oluşturma |
 | js25.js | VR buton yönetimi |
 | js26.js | Video oynatma |
 | js27.js | Video duraklama |
-| js28.js | Sync başlatma |
+| js28-01.js | Sync başlatma, sync request |
+| js28-02.js | Sync request onay/red |
 | js29.js | Sync state uygulama |
-| js30.js | Sync countdown |
-| js31.js | Sync execution |
+| js30.js | Sync countdown (deprecated) |
+| js31.js | Sync execution (deprecated) |
 | js32.js | Sync state temizleme |
 | js33.js | Video state dinleme |
 | js34.js | Video senkronizasyonu |
@@ -113,8 +124,18 @@ Proje **42 ayrı JavaScript dosyasına** bölünmüştür:
 | js38.js | Drift tracking |
 | js39.js | Sahip kontrolü |
 | js40.js | Periodic tasks ve init |
-| js41.js | VR UI Panel (ekran, ses, video, seek bar) |
-| js42.js | **Ownership Request sistemi** |
+| js41-01.js | VR UI Panel (butonlar) |
+| js41-02.js | VR UI Panel (seek bar, fonksiyonlar) |
+| js42-01.js | Ownership Request (gönderme, dinleme) |
+| js42-02.js | Ownership Request (kabul/red) |
+| js43-01.js | Spatial Audio (init, update) |
+| js43-02.js | Spatial Audio (UI button) |
+| js44-01.js | YouTube player oluşturma |
+| js44-02.js | YouTube kontroller (play/pause/seek) |
+| js44-03.js | YouTube sync (viewer) |
+| js44-04.js | YouTube UI container |
+| js44-05.js | YouTube unmute overlay |
+| js45.js | YouTube Arama sistemi |
 
 ---
 
@@ -143,28 +164,19 @@ Proje **42 ayrı JavaScript dosyasına** bölünmüştür:
 - VR kontrolör desteği
 - Raycaster ile etkileşim
 - 3 farklı ekran boyutu (Orta, Büyük, IMAX)
+- **Spatial Audio** (3D pozisyonel ses)
 
-**VR UI Panel (js41.js):**
-- Ekran hareket kontrolleri (yukarı, aşağı, sol, sağ, yakın, uzak, sıfırla)
-- Ekran boyut ayarı (büyüt/küçült)
-- Ses kontrolleri (ses+, ses-, sessiz)
-- Video kontrolleri (geri/ileri sarma, oynat/duraklat, stop)
-- Hassas seek bar (tıklama ile pozisyon değiştirme)
-- Gerçek zamanlı zaman göstergesi
-- Ses seviyesi göstergesi
+### 5. YouTube 2D Watch Party
+- YouTube IFrame API entegrasyonu
+- VR desteklenmiyor (sadece 2D)
+- Senkronize izleme
+- **Oda içi YouTube arama** (owner video değiştirebilir)
+- Autoplay policy workaround (muted başlatma + unmute overlay)
 
-### 5. Sahiplik Sistemi
-- Oda sahibi ayrılınca otomatik transfer (js20.js)
-- En eski katılımcıya sahiplik verme
-- Owner-only kontroller
-- **Ownership Request** - kullanıcılar sahiplik isteyebilir (js42.js)
-
-### 6. Performans Optimizasyonları
-- Memory leak prevention
-- Interval/timeout tracking
-- Firebase batch updates
-- DOM element caching
-- RAF queue sistemi
+### 6. Sahiplik ve Sync Sistemleri
+- Oda sahibi ayrılınca otomatik transfer
+- **Ownership Request** - kullanıcılar sahiplik isteyebilir
+- **Sync Request** - viewer'lar sync başlatabilir (owner onayı ile)
 
 ---
 
@@ -173,7 +185,7 @@ Proje **42 ayrı JavaScript dosyasına** bölünmüştür:
 ### Gereksinimler
 - Modern web tarayıcı (Chrome, Firefox, Edge)
 - Firebase projesi
-- WebTorrent tracker erişimi
+- YouTube Data API v3 key (arama için)
 
 ### Adımlar
 
@@ -190,21 +202,12 @@ const firebaseConfig = {
 };
 ```
 
-2. **Firebase Rules Ayarlama**
+2. **YouTube API Key** (ytapi.js içinde obfuscated)
+
+3. **Firebase Rules Ayarlama**
 ```bash
 firebase deploy --only database
 ```
-(firebase-rules.json dosyasını kullanın)
-
-3. **Dosyaları Yükleme**
-- Tüm JS dosyalarını (js01-js42) sunucuya yükleyin
-- index.html ve styles.css'i yükleyin
-- Cache busting için `?v=timestamp` parametresi kullanılıyor
-
-4. **Test Etme**
-- İki farklı tarayıcı/sekme açın
-- Birinden oda oluşturun
-- Diğerinden odaya katılın
 
 ---
 
@@ -215,8 +218,10 @@ claudesync/                 # ← BİLGİ BANKASI (Ana Proje)
 ├── index.html              # Ana HTML dosyası
 ├── styles.css              # CSS stilleri
 ├── firebase-rules.json     # Firebase güvenlik kuralları
-├── CLAUDE.md               # Proje dokümantasyonu (bu dosya)
-├── js01.js - js42.js       # 42 adet JavaScript modülü
+├── CLAUDE.md               # Proje dokümantasyonu
+├── ytapi.js                # YouTube API Key
+├── js01.js - js45.js       # JavaScript modülleri
+└── deneme.html             # Test dosyası
 ```
 
 ---
@@ -238,6 +243,9 @@ rooms/
       │   ├── magnetURI: string
       │   ├── fileName: string
       │   └── fileSize: number
+      ├── youtube/
+      │   ├── videoId: string
+      │   └── originalUrl: string
       ├── activeViewers/
       │   └── $userId/
       │       ├── joinedAt: timestamp
@@ -255,269 +263,96 @@ rooms/
       │       ├── time: number
       │       └── timestamp: timestamp
       ├── syncState/
-      │   ├── isBuffering: boolean
       │   ├── syncedSeekPosition: number
-      │   ├── syncedPlayTime: number
+      │   ├── playAtTime: number
       │   ├── initiatedBy: string
       │   └── initiatedAt: timestamp
+      ├── syncRequests/
+      │   └── $userId/
+      │       ├── fromUid: string
+      │       ├── currentPosition: number
+      │       ├── timestamp: timestamp
+      │       ├── status: "pending" | "rejected"
+      │       └── expiresAt: number
       └── ownershipRequests/
           └── $requestId/
               ├── fromUid: string
               ├── timestamp: timestamp
               ├── status: "pending" | "accepted" | "rejected"
-              ├── expiresAt: number
-              └── rejectedAt: timestamp (optional)
+              └── expiresAt: number
 ```
 
 ---
 
-## 🔧 Önemli Fonksiyonlar
+## 🎬 YouTube 2D Watch Party
 
-### Oda Yönetimi
+**js44-01.js ~ js44-05.js** ve **js45.js** dosyalarında implement edilmiştir.
 
-| Fonksiyon | Dosya | Görev |
-|-----------|-------|-------|
-| `createRoom()` | js18.js | Yeni oda oluşturur, P2P modunda torrent seed'ler |
-| `joinRoom(roomId)` | js19.js | Odaya katılır, listener'ları başlatır |
-| `leaveRoom()` | js21.js | Odadan ayrılır, tüm kaynakları temizler |
+### Özellikler
+- YouTube IFrame API ile video oynatma
+- VR desteklenmiyor (A-Frame gizlenir)
+- Senkronize play/pause/seek
+- Autoplay policy workaround (muted + unmute overlay)
+- **Oda içi arama** - owner video değiştirebilir
 
-### Video Kontrolleri
+### State Değişkenleri (js02.js)
+```javascript
+let ytPlayer = null;
+let ytPlayerReady = false;
+let isYouTubeMode = false;
+let youtubeVideoId = null;
+let lastYTSyncTime = 0;
+let lastYTSeekTime = 0;
+const YT_SEEK_COOLDOWN = 3000;
+```
 
-| Fonksiyon | Dosya | Görev |
-|-----------|-------|-------|
-| `playVideo()` | js26.js | Owner tarafından video oynatılır |
-| `pauseVideo()` | js27.js | Owner tarafından video duraklatılır |
-| `stopVideo()` | js41.js | Video durur ve başa sarar |
-| `seekForward()` | js06.js | 10 saniyelik ileri sarma |
-| `seekBackward()` | js06.js | 10 saniyelik geri sarma |
+---
 
-### Senkronizasyon
+## 🎧 Spatial Audio Sistemi
 
-| Fonksiyon | Dosya | Görev |
-|-----------|-------|-------|
-| `syncVideo()` | js34.js | İzleyicilerin pozisyonunu ayarlar |
-| `initiateSync()` | js28.js | Tüm izleyicileri senkronize eder |
-| `sendKeyframe()` | js36.js | Owner keyframe gönderir |
-| `listenKeyframes()` | js37.js | Viewer keyframe'leri dinler |
+**js43-01.js** ve **js43-02.js** dosyalarında implement edilmiştir.
 
-### VR UI Panel (js41.js)
+### Özellikler
+- Web Audio API ile 3D pozisyonel ses
+- HRTF panning model
+- Kamera pozisyonuna göre ses yönü
+- Toggle butonu (3D Ses / Stereo)
 
+### Fonksiyonlar
 | Fonksiyon | Görev |
 |-----------|-------|
-| `createVRUIPanel()` | VR kontrol paneli oluşturur |
-| `moveScreen(direction)` | Ekranı hareket ettirir |
-| `scaleScreen(direction)` | Ekranı büyütür/küçültür |
-| `adjustVolume(delta)` | Ses seviyesini ayarlar |
-| `toggleMute()` | Sessiz modu açar/kapar |
-| `createVRSeekBar(panel)` | Hassas seek bar oluşturur |
-| `seekToPosition(percentage)` | Belirtilen pozisyona atlar |
-
-### Ownership Request (js42.js)
-
-| Fonksiyon | Görev |
-|-----------|-------|
-| `sendOwnershipRequest()` | Sahiplik isteği gönderir |
-| `listenOwnershipRequests()` | Owner için gelen istekleri dinler |
-| `showOwnershipRequestModal()` | İstek modalını gösterir |
-| `acceptOwnershipRequest()` | İsteği kabul eder, sahipliği devreder |
-| `rejectOwnershipRequest()` | İsteği reddeder |
-| `initOwnershipRequestSystem()` | Sistemi başlatır |
-| `cleanupOwnershipRequests()` | Temizlik yapar |
-
-### Cleanup & Memory Management
-
-| Fonksiyon | Dosya | Görev |
-|-----------|-------|-------|
-| `fullCleanup()` | js16.js | Tüm kaynakları temizler |
-| `clearVideoListeners()` | js09.js | Video listener'larını temizler |
-| `cleanupVRUIPanel()` | js41.js | VR panel'i temizler |
-| `cleanupOwnershipRequests()` | js42.js | Ownership request temizliği |
+| `initSpatialAudio(videoEl)` | Spatial audio başlatır |
+| `updateSpatialAudio()` | Pozisyon günceller |
+| `toggleSpatialAudio()` | 3D/Stereo geçişi |
+| `cleanupSpatialAudio()` | Temizlik |
 
 ---
 
-## 🔄 Senkronizasyon Mekanizması
+## 🔄 Sync Request Sistemi
 
-### Clock Sync
+**js28-01.js** ve **js28-02.js** dosyalarında implement edilmiştir.
+
+### Özellikler
+- Viewer'lar sync başlatabilir (owner onayı gerekir)
+- Owner direkt sync başlatır
+- Modal ile onay/red
+- 30 saniye timeout
+
+### Sabitler
 ```javascript
-// js17.js - initClockSync()
-// 3 sample alır, ortalama offset hesaplar
-clockOffset = (sample1 + sample2 + sample3) / 3
-```
-
-### Drift Seviyeleri
-| Seviye | Aralık | Playback Rate |
-|--------|--------|---------------|
-| TIER1 | 0-300ms | 1.0x |
-| TIER2 | 300-800ms | 1.05x |
-| TIER3 | 800-1500ms | 1.15x |
-| Büyük | 1.5-9s | 1.25x-1.5x |
-| Hard Seek | 9+ saniye | Seek + Buffer |
-
-### Keyframe Sistemi
-- **Gönderen:** Owner her 10 saniyede bir keyframe gönderir (js36.js)
-- **Dinleyen:** Viewer'lar keyframe'leri dinler, 9+ saniye drift varsa hard seek (js37.js)
-
----
-
-## 📡 P2P (WebTorrent) Desteği
-
-### Akış
-
-1. **Oda Sahibi (Seeder):**
-   - Lokal dosyayı seçer
-   - `seedLocalVideo()` ile torrent oluşturulur
-   - Magnet URI Firebase'e kaydedilir
-
-2. **İzleyici (Leecher):**
-   - Magnet URI Firebase'den alınır
-   - `joinP2PTorrent()` ile torrent'e katılır
-   - Video dosyası indirilir ve oynatılır
-
-### Tracker'lar
-```javascript
-const WEBTORRENT_TRACKERS = [
-    'wss://tracker.btorrent.xyz',
-    'wss://tracker.openwebtorrent.com',
-    'wss://tracker.webtorrent.dev'
-];
-```
-
----
-
-## 📺 Adaptive Streaming (ABR)
-
-### Desteklenen Formatlar
-- **HLS (.m3u8):** HLS.js ile
-- **DASH (.mpd):** dash.js ile
-- **Progressive (mp4, webm):** Native HTML5
-
-### Kalite Sınırlama
-```javascript
-const QUALITY_CAPS = [360, 480, 720];
-let abrMaxHeightCap = 720; // Kullanıcı ayarlayabilir
+const SYNC_REQUEST_TIMEOUT = 30000;
+const SYNC_PLAY_DELAY = 3000;
 ```
 
 ---
 
 ## 🙋 Ownership Request Sistemi
 
-**js42.js** dosyasında implement edilmiştir.
+**js42-01.js** ve **js42-02.js** dosyalarında implement edilmiştir.
 
 ### Özellikler
-- Katılımcılar "🙋 Sahiplik İste" butonuyla sahiplik talep edebilir
-- Owner'a modal ile bildirim gelir (60 saniye timeout)
-- Kabul/Reddet seçenekleri
-- Reddedilirse 2 dakika cooldown
-- Kuyruk sistemi (aynı anda tek istek)
-
-### Sabitler
-```javascript
-const OWNERSHIP_REQUEST_TIMEOUT = 60000;  // 60 saniye
-const OWNERSHIP_REQUEST_COOLDOWN = 120000; // 2 dakika
-```
-
-### State Değişkenleri (js02.js)
-```javascript
-let ownershipRequestListener = null;
-let ownershipRequestTimeoutInterval = null;
-let lastOwnershipRequestTime = 0;
-let pendingOwnershipRequest = null;
-let currentRequestModal = null;
-```
-
----
-
-## ⚡ Performans Optimizasyonları
-
-### 1. Memory Leak Prevention
-```javascript
-const activeIntervals = [];
-const activeTimeouts = [];
-const firebaseListeners = [];
-```
-
-### 2. DOM Caching
-```javascript
-let cachedElements = {};
-function getCachedElement(id) {
-    if (!cachedElements[id]) {
-        cachedElements[id] = document.getElementById(id);
-    }
-    return cachedElements[id];
-}
-```
-
-### 3. RAF Queue
-```javascript
-function queueRAF(callback) {
-    rafQueue.push(callback);
-    if (!rafScheduled) {
-        requestAnimationFrame(() => { /* ... */ });
-    }
-}
-```
-
-### 4. Firebase Batch Updates
-```javascript
-function queueFirebaseUpdate(path, value) {
-    pendingFirebaseUpdates[path] = value;
-    setTimeout(flushFirebaseUpdates, 1000);
-}
-```
-
----
-
-## 🐛 Bilinen Sorunlar ve Çözümler
-
-| FIX | Sorun | Çözüm |
-|-----|-------|-------|
-| #1 | Video listener memory leak | `videoElement.listeners` array ile track |
-| #2 | VR panel button listeners | `panel._buttonListeners` ile sakla |
-| #3 | joinRoom race condition | `isJoiningRoom` flag ile kilitle |
-| #4 | Sync seek/play race | `seeked` event bekle |
-| #5 | Main thread bloklama | RAF kullan |
-| #6 | Buffer flag temizleme | Pause'da `isBuffering = false` |
-| #7 | hashchange listener leak | Referans sakla, cleanup'ta kaldır |
-| #8 | onDisconnect referans leak | `currentOnDisconnectRef` ile yönet |
-| #9 | Sync timeout uzun | 30s → 15s |
-| #10 | syncVideoState recursive | `isSyncingVideoState` flag |
-| #11 | Countdown interval birikmesi | Mevcut interval'ı temizle |
-| #12 | DOM thrashing | Element cache + `queueRAF()` |
-
----
-
-## 🎮 Kullanım Kılavuzu
-
-### Oda Oluşturma
-1. "Oda Adı" girin
-2. Video kaynağı seçin (URL veya P2P)
-3. Ekran boyutu ve ortam ayarlayın
-4. "Oda Oluştur ve Katıl" butonuna basın
-
-### Kontroller (Oda Sahibi)
-| Buton | Görev |
-|-------|-------|
-| ▶️ Oynat | Videoyu başlatır |
-| ⏸️ Duraklat | Videoyu durdurur |
-| ⏹️ Stop | Başa sarar ve durdurur |
-| ⏪ -10s | 10 saniye geri |
-| ⏩ +10s | 10 saniye ileri |
-| 🔄 Sync | Tüm izleyicileri senkronize eder |
-| 🙋 Sahiplik İste | Sahiplik talep eder (viewer için) |
-
-### Keyboard Kısayolları
-| Tuş | Görev |
-|-----|-------|
-| Space | Play/Pause |
-| ← | -10s |
-| → | +10s |
-
-### VR Kontrol Paneli (Sol taraf)
-- **Ekran Hareket:** 8 yönlü kontrol
-- **Ekran Boyut:** Büyüt/Küçült
-- **Ses Kontrol:** +/-/Mute
-- **Video Kontrol:** Play/Pause/Stop/Seek
-- **Seek Bar:** Hassas tıklama ile pozisyon değiştir
+- Katılımcılar sahiplik talep edebilir
+- 60 saniye timeout, 2 dakika cooldown
 
 ---
 
@@ -535,10 +370,12 @@ const TIER1_THRESHOLD = 300;
 const TIER2_THRESHOLD = 800;
 const TIER3_THRESHOLD = 1500;
 const LARGE_DRIFT_THRESHOLD = 9000;
-const HARD_SEEK_MIN_INTERVAL = 2000;
 
 const OWNERSHIP_REQUEST_TIMEOUT = 60000;
 const OWNERSHIP_REQUEST_COOLDOWN = 120000;
+const SYNC_REQUEST_TIMEOUT = 30000;
+const SYNC_PLAY_DELAY = 3000;
+const YT_SEEK_COOLDOWN = 3000;
 ```
 
 ---
@@ -547,23 +384,12 @@ const OWNERSHIP_REQUEST_COOLDOWN = 120000;
 
 ### Namecheap Hosting
 - Domain: `https://vr-sinema.online`
-- Klasör: `public_html/vr-sinema/`
 
 ### GitHub Pages
 - Repository: `recinilt/mefeypublicv2`
 - URL: `https://recinilt.github.io/mefeypublicv2/`
 
-### Cache Busting
-```html
-<script>
-const v = new Date().getTime();
-document.write('<script src="js01.js?v=' + v + '"><\/script>');
-// ... js01.js - js42.js
-</script>
-```
-
 ---
 
-**Versiyon:** 3.8  
-**Son Güncelleme:** Ocak 2025  
-**Dosya Sayısı:** 42 JS + 1 HTML + 1 CSS + 1 Firebase Rules
+**Versiyon:** 4.0  
+**Son Güncelleme:** Ocak 2025

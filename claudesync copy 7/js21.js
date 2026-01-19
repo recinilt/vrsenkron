@@ -13,9 +13,6 @@
             // ✅ VR UI Panel temizle
             cleanupVRUIPanel();
             
-            // ✅ YENİ: Ownership request cleanup
-            cleanupOwnershipRequests();
-            
             // Full cleanup (includes FIX #7 & #8)
             fullCleanup();
             

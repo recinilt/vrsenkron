@@ -10,6 +10,11 @@
             if (typeof cleanupVRUIPanel === 'function') {
                 cleanupVRUIPanel();
             }
+            
+            // ✅ YENİ: Ownership request cleanup
+            if (typeof cleanupOwnershipRequests === 'function') {
+                cleanupOwnershipRequests();
+            }
 
             // Flush pending Firebase updates first
             if (firebaseBatchTimeout) {
@@ -78,6 +83,10 @@
             // ✅ VR Panel değişkenlerini sıfırla
             screenPosition = { x: 0, y: 2, z: -10 };
             currentScreenScale = 1.0;
+            
+            // ✅ YENİ: Ownership request değişkenlerini sıfırla
+            lastOwnershipRequestTime = 0;
+            pendingOwnershipRequest = null;
             
             debugLog('🧹 Full cleanup completed');
         }

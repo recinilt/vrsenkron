@@ -161,6 +161,39 @@
           }
         },
         
+        "ownershipRequests": {
+          ".read": "auth != null",
+          ".indexOn": ["fromUid", "status", "timestamp"],
+          
+          "$requestId": {
+            ".write": "auth != null && (newData.child('fromUid').val() === auth.uid || data.parent().parent().child('owner').val() === auth.uid || !newData.exists())",
+            
+            "fromUid": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            
+            "timestamp": {
+              ".validate": "newData.isNumber() || newData.val() === '.sv'"
+            },
+            
+            "status": {
+              ".validate": "newData.isString() && (newData.val() === 'pending' || newData.val() === 'accepted' || newData.val() === 'rejected')"
+            },
+            
+            "expiresAt": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            },
+            
+            "rejectedAt": {
+              ".validate": "(newData.isNumber() || newData.val() === '.sv') || !newData.exists()"
+            },
+            
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        
         "$other": {
           ".validate": false
         }

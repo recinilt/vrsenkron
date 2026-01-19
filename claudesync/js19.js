@@ -72,6 +72,9 @@
                 // Start all periodic tasks
                 startPeriodicTasks();
                 
+                // ✅ YENİ: Ownership request sistemini başlat
+                initOwnershipRequestSystem();
+                
                 isJoiningRoom = false;
                 
             } catch (error) {

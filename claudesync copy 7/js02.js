@@ -87,12 +87,3 @@ function getStreamType(url) {
     if (u.endsWith('.mpd')) return 'dash';
     return 'native';
 }
-
-// ==================== OWNERSHIP REQUEST STATE ====================
-let ownershipRequestListener = null;
-let ownershipRequestTimeoutInterval = null;
-let lastOwnershipRequestTime = 0;
-let pendingOwnershipRequest = null;
-let currentRequestModal = null;
-const OWNERSHIP_REQUEST_TIMEOUT = 60000; // 60 saniye
-const OWNERSHIP_REQUEST_COOLDOWN = 120000; // 2 dakika

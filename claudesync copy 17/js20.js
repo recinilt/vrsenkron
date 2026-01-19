@@ -1,4 +1,5 @@
-// ✅ YENİ: Oda sahibi ayrıldığında yeni sahip atama
+        
+        // ✅ YENİ: Oda sahibi ayrıldığında yeni sahip atama
         function listenOwnerLeft() {
             const viewersRef = db.ref('rooms/' + currentRoomId + '/activeViewers');
             trackListener(viewersRef);
@@ -54,18 +55,15 @@
                             // Owner task'larını başlat
                             startOwnerTasks();
                             
-                            // ✅ FIX: Sync request listener'ı başlat (artık owner'ız)
-                            listenSyncRequests();
-                            
-                            // ✅ FIX: Ownership request listener'ı başlat (artık owner'ız)
-                            listenOwnershipRequests();
+                            // Keyframe listener'ı kapat (artık owner'ız)
+                            // Not: listenKeyframes zaten trackListener ile eklendi, 
+                            // ama owner olunca keyframe dinlemeye gerek yok
                             
                             console.log('👑 Sahiplik size devredildi!');
                             debugLog('👑 Ownership transferred to:', currentUser.uid);
                             
                             // UI güncelle
                             updateRoomInfoDisplay();
-                            updateOwnershipRequestButton();
                             
                         } catch (error) {
                             console.error('Sahiplik transfer hatası:', error);

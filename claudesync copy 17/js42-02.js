@@ -1,3 +1,4 @@
+
 // Sahiplik isteğini kabul et
 async function acceptOwnershipRequest(requestId) {
     if (!currentRoomId || !isRoomOwner) return;
@@ -54,14 +55,8 @@ async function acceptOwnershipRequest(requestId) {
             ownershipRequestTimeoutInterval = null;
         }
         
-        // ✅ FIX: Sync request listener'ı durdur (eski sahip artık dinlememeli)
-        cleanupSyncRequests();
-        
         // 7. Keyframe listener'ı başlat (artık viewer'ız)
         listenKeyframes();
-        
-        // ✅ FIX: Kendi sync isteğimizin durumunu dinlemeye başla (artık viewer'ız)
-        listenMySyncRequestStatus();
         
         // 8. UI güncelle
         updateRoomInfoDisplay();
@@ -131,9 +126,6 @@ function listenMyOwnershipRequestStatus() {
             
             // Ownership request listener'ı başlat
             listenOwnershipRequests();
-            
-            // ✅ FIX: Sync request listener'ı başlat (artık owner'ız)
-            listenSyncRequests();
             
             // UI güncelle
             updateRoomInfoDisplay();

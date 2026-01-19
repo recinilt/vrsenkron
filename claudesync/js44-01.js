@@ -154,6 +154,49 @@ function onYTPlayerStateChange(event) {
         syncYouTubeVideo();
     }
     
+    // ✅ YENİ: Video bittiğinde (ENDED) - hem owner hem viewer için
+    if (state === YT.PlayerState.ENDED) {
+        debugLog('🏁 YouTube video ended');
+        
+        if (isRoomOwner) {
+            // Owner: Firebase'e yaz, herkes sync olsun
+            lastCommandSource = 'self';
+            
+            // Önce 0'a seek
+            ytPlayer.seekTo(0, true);
+            
+            // 500ms sonra pause
+            trackTimeout(setTimeout(() => {
+                ytPlayer.pauseVideo();
+                
+                // Firebase güncelle
+                db.ref('rooms/' + currentRoomId + '/videoState').update({
+                    isPlaying: false,
+                    currentTime: 0,
+                    startTimestamp: getServerTime(),
+                    lastUpdate: firebase.database.ServerValue.TIMESTAMP
+                });
+                
+                debugLog('🏁 Video ended: seek to 0 and paused (owner)');
+                
+                trackTimeout(setTimeout(() => {
+                    lastCommandSource = null;
+                }, 300));
+            }, 500));
+            
+        } else {
+            // Viewer: Lokal olarak 0'a seek ve pause (Firebase sync de yapacak)
+            ytPlayer.seekTo(0, true);
+            
+            trackTimeout(setTimeout(() => {
+                ytPlayer.pauseVideo();
+                debugLog('🏁 Video ended: seek to 0 and paused (viewer)');
+            }, 500));
+        }
+        
+        return; // ENDED işlendi, devam etme
+    }
+    
     // Sadece owner'ın aksiyonları Firebase'e gönderilir
     if (!isRoomOwner) return;
     
@@ -240,4 +283,4 @@ function ytPauseVideo() {
     trackTimeout(setTimeout(() => {
         lastCommandSource = null;
     }, 500));
-}
+}

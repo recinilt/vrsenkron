@@ -1,5 +1,4 @@
-        
-        function clearSyncState() {
+function clearSyncState() {
             syncState = null;
             syncModeActive = false;
             
@@ -88,22 +87,36 @@
                 
             } else {
                 // Normal mod - owner/viewer'a göre ayarla
-                if (isRoomOwner) {
-                    if (playBtn) playBtn.disabled = false;
-                    if (pauseBtn) pauseBtn.disabled = false;
-                    if (stopBtn) stopBtn.disabled = false;
-                    if (rewindBtn) rewindBtn.disabled = false;
-                    if (forwardBtn) forwardBtn.disabled = false;
-                    
-                    if (ytPlayBtn) ytPlayBtn.disabled = false;
-                    if (ytPauseBtn) ytPauseBtn.disabled = false;
-                    if (ytStopBtn) ytStopBtn.disabled = false;
-                    if (ytRewindBtn) ytRewindBtn.disabled = false;
-                    if (ytForwardBtn) ytForwardBtn.disabled = false;
-                }
+                // ✅ FIX: VR kontrolleri için de disabled + opacity + cursor ayarı
+                const vrOwnerOnlyBtns = [playBtn, pauseBtn, stopBtn, rewindBtn, forwardBtn];
+                const ytOwnerOnlyBtns = [ytPlayBtn, ytPauseBtn, ytStopBtn, ytRewindBtn, ytForwardBtn];
+                
+                vrOwnerOnlyBtns.forEach(btn => {
+                    if (btn) {
+                        btn.disabled = !isRoomOwner;
+                        btn.style.opacity = isRoomOwner ? '1' : '0.5';
+                        btn.style.cursor = isRoomOwner ? 'pointer' : 'not-allowed';
+                    }
+                });
+                
+                ytOwnerOnlyBtns.forEach(btn => {
+                    if (btn) {
+                        btn.disabled = !isRoomOwner;
+                        btn.style.opacity = isRoomOwner ? '1' : '0.5';
+                        btn.style.cursor = isRoomOwner ? 'pointer' : 'not-allowed';
+                    }
+                });
                 
                 // Sync butonu herkes için açık
-                if (syncBtn) syncBtn.disabled = false;
-                if (ytSyncBtn) ytSyncBtn.disabled = false;
+                if (syncBtn) {
+                    syncBtn.disabled = false;
+                    syncBtn.style.opacity = '1';
+                    syncBtn.style.cursor = 'pointer';
+                }
+                if (ytSyncBtn) {
+                    ytSyncBtn.disabled = false;
+                    ytSyncBtn.style.opacity = '1';
+                    ytSyncBtn.style.cursor = 'pointer';
+                }
             }
         }

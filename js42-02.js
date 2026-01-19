@@ -67,7 +67,10 @@ async function acceptOwnershipRequest(requestId) {
         updateRoomInfoDisplay();
         updateOwnershipRequestButton();
         
-        // ✅ FIX: YouTube modundaysa kontrolleri güncelle (arama çubuğu gizlensin)
+        // ✅ FIX: Kontrolleri güncelle (VR butonları disabled olsun)
+        updateControlsForSync(false);
+        
+        // ✅ FIX: YouTube modundaysa ek kontrolleri güncelle (arama çubuğu gizlensin)
         if (isYouTubeMode) {
             updateYouTubeControls();
         }
@@ -144,7 +147,10 @@ function listenMyOwnershipRequestStatus() {
             updateRoomInfoDisplay();
             updateOwnershipRequestButton();
             
-            // ✅ FIX: YouTube modundaysa kontrolleri güncelle (arama çubuğu görünsün)
+            // ✅ FIX: Kontrolleri güncelle (VR butonları enabled olsun)
+            updateControlsForSync(false);
+            
+            // ✅ FIX: YouTube modundaysa ek kontrolleri güncelle (arama çubuğu görünsün)
             if (isYouTubeMode) {
                 updateYouTubeControls();
             }

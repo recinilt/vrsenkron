@@ -3,13 +3,28 @@ async function createYouTube2DScene() {
     debugLog('🎬 Creating YouTube 2D scene...');
     
     // YouTube video ID'yi al
-    youtubeVideoId = currentRoomData.youtube.videoId;
+    youtubeVideoId = currentRoomData.youtube?.videoId || '';
     
     // 2D container oluştur
     createYouTube2DContainer();
     
     // Room info güncelle
     updateYouTubeRoomInfo();
+    
+    // Video ID yoksa sadece arama UI göster
+    if (!youtubeVideoId) {
+        debugLog('ℹ️ No video ID - showing search UI only');
+        
+        // Kontrolleri ayarla
+        updateYouTubeControls();
+        
+        // Video değişikliği dinle (video seçildiğinde başlasın)
+        if (typeof listenYouTubeVideoChange === 'function') {
+            listenYouTubeVideoChange();
+        }
+        
+        return; // Player oluşturma, kullanıcı arama yapacak
+    }
     
     // YouTube player oluştur
     try {
@@ -21,11 +36,10 @@ async function createYouTube2DScene() {
         // Sync interval başlat
         startYouTubeSyncInterval();
         
-        // ✅ YENİ: Video değişikliği dinle (tüm kullanıcılar için)
-        listenYouTubeVideoChange();
-        
-        // ✅ FIX: applyYouTubeVideoState çağrısı kaldırıldı
-        // Zaten js44.js onReady callback'inde çağrılıyor
+        // Video değişikliği dinle (tüm kullanıcılar için)
+        if (typeof listenYouTubeVideoChange === 'function') {
+            listenYouTubeVideoChange();
+        }
         
         debugLog('✅ YouTube 2D scene created successfully');
         
@@ -34,9 +48,6 @@ async function createYouTube2DScene() {
         showYouTubeError(error.message);
     }
 }
-
-// ✅ FIX: applyYouTubeVideoState fonksiyonu kaldırıldı
-// js44.js'te daha güncel versiyonu var
 
 // ✅ YENİ: Kontrolleri devre dışı bırak
 function disableAllControls() {

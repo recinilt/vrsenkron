@@ -4,6 +4,10 @@
 // Oda sahibi odadan çıkmadan video değiştirebilir
 // ============================================
 
+// ==================== VARIABLES ====================
+let ytSearchLoading = false;
+let ytSearchResults = [];
+
 // ==================== YOUTUBE SEARCH FUNCTIONS ====================
 
 // YouTube'da video ara
@@ -213,6 +217,12 @@ function listenYouTubeVideoChange() {
 
 // Enter tuşu ile arama
 function handleYTSearchKeydown(event) {
+    // Boşluk tuşuna izin ver
+    if (event.key === ' ') {
+        // Default davranışa izin ver (boşluk yazılsın)
+        return;
+    }
+    
     if (event.key === 'Enter') {
         event.preventDefault();
         const input = document.getElementById('yt-search-input');

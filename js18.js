@@ -25,13 +25,8 @@
                 return;
             }
             
-            if (isYouTubeModeSelected) {
-                const ytVideoId = extractYouTubeVideoId(youtubeUrl);
-                if (!ytVideoId) {
-                    alert('Geçerli bir YouTube linki giriniz!\n\nÖrnek: https://www.youtube.com/watch?v=VIDEO_ID');
-                    return;
-                }
-            }
+            // YouTube modunda URL zorunlu DEĞİL - arama ile video seçilebilir
+            // Zorunluluk kaldırıldı
             
             try {
                 const userCredential = await auth.signInAnonymously();
@@ -54,11 +49,17 @@
                     }
                 }
                 
-                // YouTube modunda video ID çıkar
+                // YouTube modunda video ID çıkar (varsa)
                 if (isYouTubeModeSelected) {
                     ytVideoId = extractYouTubeVideoId(youtubeUrl);
-                    finalVideoUrl = 'youtube://' + ytVideoId; // YouTube marker
-                    debugLog('✅ YouTube video ID:', ytVideoId);
+                    // ytVideoId null olabilir - sorun değil
+                    if (ytVideoId) {
+                        finalVideoUrl = 'youtube://' + ytVideoId;
+                        debugLog('✅ YouTube video ID:', ytVideoId);
+                    } else {
+                        finalVideoUrl = 'youtube://'; // Marker, video sonra seçilecek
+                        debugLog('ℹ️ YouTube mode - video will be selected via search');
+                    }
                 }
                 
                 const roomRef = db.ref('rooms').push();
@@ -88,11 +89,11 @@
                     };
                 }
                 
-                // YouTube modunda video ID'yi ayrı kaydet
-                if (ytVideoId) {
+                // YouTube modunda video bilgilerini kaydet
+                if (isYouTubeModeSelected) {
                     roomData.youtube = {
-                        videoId: ytVideoId,
-                        originalUrl: youtubeUrl
+                        videoId: ytVideoId || '', // null yerine boş string
+                        originalUrl: youtubeUrl || ''
                     };
                 }
                 

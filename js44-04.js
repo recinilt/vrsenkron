@@ -1,4 +1,3 @@
-
 // ==================== YOUTUBE UI ====================
 
 // YouTube 2D container oluştur
@@ -19,6 +18,16 @@ function createYouTube2DContainer() {
                 ⚠️ YouTube modu: VR desteklenmiyor (2D Watch Party)
             </div>
         </div>
+        
+        <!-- ✅ YENİ: YouTube Arama Bölümü (Sadece Oda Sahibi) -->
+        <div id="yt-search-container" class="yt-search-container" style="display: none;">
+            <div class="yt-search-input-wrapper">
+                <input type="text" id="yt-search-input" placeholder="Video ara... (karaoke, müzik, film...)" onkeydown="handleYTSearchKeydown(event)">
+                <button id="yt-search-btn" onclick="handleYTSearchClick()">🔍</button>
+            </div>
+            <div id="yt-search-results" class="yt-search-results"></div>
+        </div>
+        
         <div class="youtube-player-wrapper">
             <div id="youtube-player-container"></div>
         </div>
@@ -96,6 +105,21 @@ function updateYouTubeRoomInfo() {
             })
             .catch(() => {});
     }
+    
+    // ✅ YENİ: Arama bölümünü owner'a göster
+    updateYTSearchVisibility();
+}
+
+// ✅ YENİ: Arama bölümü görünürlüğünü ayarla
+function updateYTSearchVisibility() {
+    const searchContainer = document.getElementById('yt-search-container');
+    if (searchContainer) {
+        if (isRoomOwner) {
+            searchContainer.style.display = 'block';
+        } else {
+            searchContainer.style.display = 'none';
+        }
+    }
 }
 
 // YouTube kontrol butonlarını owner/viewer'a göre ayarla
@@ -118,6 +142,9 @@ function updateYouTubeControls() {
         requestBtn.style.opacity = isRoomOwner ? '0.5' : '1';
         requestBtn.textContent = isRoomOwner ? '👑 Oda Sahibisin' : '🙋 Sahiplik İste';
     }
+    
+    // ✅ YENİ: Arama görünürlüğünü güncelle
+    updateYTSearchVisibility();
 }
 
 // ==================== YOUTUBE CLEANUP ====================
@@ -244,4 +271,4 @@ function showUnmuteOverlay() {
     
     document.body.appendChild(overlay);
     debugLog('🔊 Unmute overlay shown');
-}
+}

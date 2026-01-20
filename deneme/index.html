@@ -71,15 +71,16 @@
                 <!-- YouTube Section -->
                 <div id="youtube-section">
                     <div class="input-group">
-                        <label>YouTube URL</label>
+                        <label>YouTube URL (İsteğe Bağlı)</label>
                         <input type="text" id="youtube-url" placeholder="https://www.youtube.com/watch?v=VIDEO_ID">
                     </div>
                     <div class="youtube-info-box">
-                        <div>⚠️ <strong>YouTube Modu Bilgisi:</strong></div>
+                        <div>ℹ️ <strong>YouTube Modu Bilgisi:</strong></div>
                         <ul>
-                            <li>VR desteklenmez (sadece 2D izleme)</li>
-                            <li>Senkronize watch party çalışır</li>
-                            <li>Bazı videolar gömülmeye izin vermeyebilir</li>
+                            <li>✅ <strong>URL girmeden de oda açabilirsiniz!</strong> Oda içinde arama yaparak video seçebilirsiniz.</li>
+                            <li>⚠️ VR desteklenmez (sadece 2D izleme)</li>
+                            <li>✅ Senkronize watch party çalışır</li>
+                            <li>⚠️ Bazı videolar gömülmeye izin vermeyebilir</li>
                         </ul>
                     </div>
                 </div>
@@ -190,8 +191,10 @@
 
 <script>
 const v = new Date().getTime();
+document.write('<script src="ytapi.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js01.js?v=' + v + '"><' + '/script>');
-document.write('<script src="js02.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js02-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js02-02.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js03.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js04.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js05.js?v=' + v + '"><' + '/script>');
@@ -218,12 +221,16 @@ document.write('<script src="js24-02.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js25.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js26.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js27.js?v=' + v + '"><' + '/script>');
-document.write('<script src="js28-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js28-01-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js28-01-02.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js28-01-03.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js28-02.js?v=' + v + '"><' + '/script>');
-document.write('<script src="js29.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js29-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js29-02.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js30.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js31.js?v=' + v + '"><' + '/script>');
-document.write('<script src="js32.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js32-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js32-02.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js33.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js34.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js35.js?v=' + v + '"><' + '/script>');
@@ -231,18 +238,42 @@ document.write('<script src="js36.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js37.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js38.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js39.js?v=' + v + '"><' + '/script>');
-document.write('<script src="js40.js?v=' + v + '"><' + '/script>');
-document.write('<script src="js41-01.js?v=' + v + '"><' + '/script>');
-document.write('<script src="js41-02.js?v=' + v + '"><' + '/script>');
-document.write('<script src="js42-01.js?v=' + v + '"><' + '/script>');
-document.write('<script src="js42-02.js?v=' + v + '"><' + '/script>');
-document.write('<script src="js43-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js40-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js40-02.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js40-03.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js41-01-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js41-01-02.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js41-01-03.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js41-02-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js41-02-02.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js41-02-03.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js42-01-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js42-01-02.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js42-01-03.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js42-01-04.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js42-02-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js42-02-02.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js42-02-03.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js43-01-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js43-01-02.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js43-01-03.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js43-02.js?v=' + v + '"><' + '/script>');
-document.write('<script src="js44-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js44-01-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js44-01-02.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js44-01-03.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js44-01-04.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js44-02.js?v=' + v + '"><' + '/script>');
-document.write('<script src="js44-03.js?v=' + v + '"><' + '/script>');
-document.write('<script src="js44-04.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js44-03-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js44-03-02.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js44-04-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js44-04-02.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js44-04-03.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js44-04-04.js?v=' + v + '"><' + '/script>');
 document.write('<script src="js44-05.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js45-01.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js45-02.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js45-03.js?v=' + v + '"><' + '/script>');
+document.write('<script src="js45-04.js?v=' + v + '"><' + '/script>');
 </script>
 </body> 
 </html>

@@ -1,5 +1,10 @@
 // ✅ FIX #7 & #8: hashchange ve onDisconnect temizleme
         function fullCleanup() {
+            // ✅ YENİ: Owner change listener temizle
+            if (typeof cleanupOwnerChangeListener === 'function') {
+                cleanupOwnerChangeListener();
+            }
+            
             // ✅ ABR cleanup
             destroyAdaptiveStreaming();
             

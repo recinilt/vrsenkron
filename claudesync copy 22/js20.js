@@ -4,21 +4,6 @@
             trackListener(viewersRef);
             
             viewersRef.on('value', async (snapshot) => {
-                // ✅ YENİ: İzleyici sayısını anlık güncelle (real-time)
-                const count = snapshot.numChildren();
-                queueRAF(() => {
-                    // Normal VR modu
-                    const viewerElement = getCachedElement('viewer-count');
-                    if (viewerElement) {
-                        viewerElement.textContent = `👥 ${count} izleyici`;
-                    }
-                    // YouTube modu
-                    const ytViewerCount = document.getElementById('youtube-viewer-count');
-                    if (ytViewerCount) {
-                        ytViewerCount.textContent = `👥 ${count} izleyici`;
-                    }
-                });
-                
                 if (!currentRoomId || !currentUser || ownerTransferInProgress) return;
                 
                 const viewers = snapshot.val();

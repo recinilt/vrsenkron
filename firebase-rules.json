@@ -25,6 +25,10 @@
           ".validate": "(newData.isString() && newData.val().length <= 500) || !newData.exists()"
         },
         
+        "passwordHash": {
+          ".validate": "(newData.isString() && newData.val().length === 64) || newData.val() === null || !newData.exists()"
+        },
+        
         "p2p": {
           ".read": "auth != null",
           ".write": "auth != null && (data.parent().child('owner').val() === auth.uid || !data.exists())",

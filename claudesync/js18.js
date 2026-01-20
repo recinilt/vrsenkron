@@ -5,6 +5,7 @@
             const youtubeUrl = getCachedElement('youtube-url') ? getCachedElement('youtube-url').value.trim() : '';
             const screenSize = getCachedElement('screen-size').value;
             const environment = getCachedElement('environment').value;
+            const roomPassword = getCachedElement('room-password') ? getCachedElement('room-password').value : '';
             
             // Mod kontrolü
             const isP2PMode = currentVideoSourceType === 'local';
@@ -62,6 +63,9 @@
                     }
                 }
                 
+                // Şifre hash'le (boşsa null döner)
+                const passwordHash = await hashPassword(roomPassword);
+                
                 const roomRef = db.ref('rooms').push();
                 currentRoomId = roomRef.key;
                 
@@ -71,6 +75,7 @@
                     videoUrl: finalVideoUrl,
                     screenSize: screenSize,
                     environment: environment,
+                    passwordHash: passwordHash,
                     createdAt: firebase.database.ServerValue.TIMESTAMP,
                     videoState: {
                         isPlaying: false,

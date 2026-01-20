@@ -32,6 +32,7 @@ async function showRoomList() {
                     rooms.forEach(room => {
                         const isP2P = room.data.p2p && room.data.p2p.magnetURI;
                         const isYouTube = room.data.youtube && room.data.youtube.videoId;
+                        const isPasswordProtected = room.data.passwordHash ? true : false;
                         
                         let modeLabel = '';
                         let modeDetails = '';
@@ -44,13 +45,20 @@ async function showRoomList() {
                             modeDetails = '| 📺 2D Watch Party';
                         }
                         
+                        // Şifreli oda ikonu
+                        const lockIcon = isPasswordProtected ? '🔒 ' : '';
+                        
                         const roomDiv = document.createElement('div');
                         roomDiv.className = 'room-item';
+                        if (isPasswordProtected) {
+                            roomDiv.classList.add('room-locked');
+                        }
                         roomDiv.innerHTML = `
-                            <div class="room-name">${room.data.name} ${modeLabel}</div>
+                            <div class="room-name">${lockIcon}${room.data.name} ${modeLabel}</div>
                             <div class="room-details">👥 ${room.viewers} izleyici ${modeDetails}</div>
                         `;
-                        roomDiv.onclick = () => joinRoom(room.id);
+                        // attemptJoinRoom kullan - şifre kontrolü yapar
+                        roomDiv.onclick = () => attemptJoinRoom(room.id);
                         roomList.appendChild(roomDiv);
                     });
                 }

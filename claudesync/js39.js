@@ -1,4 +1,5 @@
-function checkOwnerPresence() {
+        
+        function checkOwnerPresence() {
             if (!isRoomOwner && currentRoomData && currentUser) {
                 db.ref('rooms/' + currentRoomId + '/activeViewers/' + currentRoomData.owner).once('value')
                     .then(snapshot => {
@@ -25,19 +26,7 @@ function checkOwnerPresence() {
         // ==================== UI UPDATES (DEBOUNCED) ====================
         function updateRoomInfoDisplay() {
             if (!currentRoomData) return;
-            
-            // VR modu
-            const vrRoomName = getCachedElement('room-name-display');
-            if (vrRoomName) {
-                vrRoomName.textContent = currentRoomData.name + (isRoomOwner ? ' 👑' : '');
-            }
-            
-            // YouTube modu
-            const ytRoomName = document.getElementById('youtube-room-name');
-            if (ytRoomName) {
-                ytRoomName.textContent = currentRoomData.name + (isRoomOwner ? ' 👑' : '');
-            }
-            
+            getCachedElement('room-name-display').textContent = currentRoomData.name + (isRoomOwner ? ' 👑' : '');
             updateViewerCount();
         }
         

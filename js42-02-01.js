@@ -43,7 +43,7 @@ async function acceptOwnershipRequest(requestId) {
         // 5. Owner task'larını durdur
         clearOwnerTasks();
         
-        // 6. Ownership request listener'ı durdur
+        // 6. Ownership request listener'ı durdur (artık owner değiliz)
         if (ownershipRequestListener) {
             ownershipRequestListener.off();
             ownershipRequestListener = null;
@@ -62,6 +62,9 @@ async function acceptOwnershipRequest(requestId) {
         
         // ✅ FIX: Kendi sync isteğimizin durumunu dinlemeye başla (artık viewer'ız)
         listenMySyncRequestStatus();
+        
+        // ✅ FIX: Kendi ownership isteğimizin durumunu dinlemeye başla (artık viewer'ız)
+        listenMyOwnershipRequestStatus();
         
         // 8. UI güncelle
         updateRoomInfoDisplay();

@@ -1,4 +1,3 @@
-
 // Sahiplik isteğini reddet
 async function rejectOwnershipRequest(requestId) {
     if (!currentRoomId || !isRoomOwner) return;
@@ -23,15 +22,25 @@ async function rejectOwnershipRequest(requestId) {
     }
 }
 
-// Katılımcı için: İsteğin durumunu dinle
+// ✅ FIX: Kendi ownership isteğimizi dinleyen listener referansı
+let myOwnershipRequestListener = null;
+
 // Katılımcı için: İsteğin durumunu dinle
 function listenMyOwnershipRequestStatus() {
     if (!currentRoomId || !currentUser || isRoomOwner) return;
+    
+    // ✅ FIX: Önceki listener'ı temizle (çift listener önleme)
+    if (myOwnershipRequestListener) {
+        myOwnershipRequestListener.off();
+        myOwnershipRequestListener = null;
+    }
     
     const ref = db.ref(`rooms/${currentRoomId}/ownershipRequests`)
         .orderByChild('fromUid')
         .equalTo(currentUser.uid);
     
+    // ✅ FIX: Listener referansını sakla
+    myOwnershipRequestListener = ref;
     trackListener(ref);
     
     ref.on('child_changed', (snapshot) => {
@@ -44,10 +53,24 @@ function listenMyOwnershipRequestStatus() {
             isRoomOwner = true;
             currentRoomData.owner = currentUser.uid;
             
+            // ✅ FIX: Önce keyframe listener'ı kapat (artık owner'ız, dinlememize gerek yok)
+            try {
+                db.ref('rooms/' + currentRoomId + '/keyframes').off();
+                debugLog('🧹 Keyframe listener stopped (now owner)');
+            } catch (e) {
+                console.warn('Keyframe listener cleanup error:', e);
+            }
+            
+            // ✅ FIX: Kendi ownership listener'ımızı kapat (artık owner'ız)
+            if (myOwnershipRequestListener) {
+                myOwnershipRequestListener.off();
+                myOwnershipRequestListener = null;
+            }
+            
             // Owner task'larını başlat
             startOwnerTasks();
             
-            // Ownership request listener'ı başlat
+            // Ownership request listener'ı başlat (gelen istekleri dinle)
             listenOwnershipRequests();
             
             // ✅ FIX: Sync request listener'ı başlat (artık owner'ız)
